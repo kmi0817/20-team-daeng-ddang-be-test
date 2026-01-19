@@ -106,4 +106,14 @@ public enum ErrorCode {
         this.message = message;
     }
 
+    public String toResponseJson() {
+        return """
+        {
+          "message": "%s",
+          "data": null,
+          "errorCode": "%s"
+        }
+        """.formatted(message, name());
+    }
+
 }

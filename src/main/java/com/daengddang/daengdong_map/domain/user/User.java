@@ -29,9 +29,6 @@ public class User extends BaseTimeEntity {
     @Column(name = "kakao_user_id", nullable = false, unique = true)
     private Long kakaoUserId;
 
-/*    @Column(name = "kakao_account_email", length = 20)
-    private String kakaoAccountEmail;*/
-
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 10)
     private UserStatus status = UserStatus.ACTIVE;
