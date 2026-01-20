@@ -9,6 +9,7 @@ import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.UUID;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
@@ -67,6 +68,28 @@ public class Dog extends BaseTimeEntity {
     @JoinColumn(name = "breed_id", nullable = false)
     private Breed breed;
 
+    @Builder
+    private Dog(String name,
+                LocalDate birthDate,
+                DogGender gender,
+                boolean isNeutered,
+                Float weight,
+                String profileImageUrl,
+                DogStatus status,
+                String dogKey,
+                User user,
+                Breed breed) {
+        this.name = name;
+        this.birthDate = birthDate;
+        this.gender = gender;
+        this.isNeutered = isNeutered;
+        this.weight = weight;
+        this.profileImageUrl = profileImageUrl;
+        this.status = status == null ? DogStatus.ACTIVE : status;
+        this.dogKey = dogKey == null ? UUID.randomUUID().toString() : dogKey;
+        this.user = user;
+        this.breed = breed;
+    }
 
     public void updateProfile(String name, LocalDate birthDate, DogGender gender, boolean isNeutered, Float weight, String profileImageUrl, Breed breed, Region region) {
         this.name = name;

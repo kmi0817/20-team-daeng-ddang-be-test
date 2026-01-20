@@ -10,7 +10,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: create
+      ddl-auto: update
     show-sql: true
     open-in-view: false
     properties:
@@ -53,3 +53,12 @@ logging:
     org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql: TRACE
     org.springframework.security: DEBUG
+
+
+aws:
+  credentials:
+    access-key: ${AWS_ACCESS_KEY_ID}
+    secret-key: ${AWS_SECRET_ACCESS_KEY}
+  s3:
+    bucket: ktb-dori-bucket
+  region: ap-northeast-2
