@@ -11,7 +11,7 @@ import java.time.LocalDate;
 import lombok.Getter;
 
 @Getter
-public class DogRegisterRequest {
+public class DogUpdateRequest {
 
     @NotBlank
     @Size(min = 2, max = 15)
@@ -22,6 +22,9 @@ public class DogRegisterRequest {
     private Long breedId;
 
     private LocalDate birthDate;
+
+    @NotNull
+    private Long regionId;
 
     private DogGender gender;
     private Boolean isNeutered;

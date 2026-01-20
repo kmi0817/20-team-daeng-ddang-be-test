@@ -9,7 +9,10 @@ import com.daengddang.daengdong_map.domain.region.RegionStatus;
 import com.daengddang.daengdong_map.domain.user.User;
 import com.daengddang.daengdong_map.domain.user.UserStatus;
 import com.daengddang.daengdong_map.dto.request.dog.DogRegisterRequest;
+import com.daengddang.daengdong_map.dto.request.dog.DogUpdateRequest;
 import com.daengddang.daengdong_map.dto.response.dog.DogRegisterResponse;
+import com.daengddang.daengdong_map.dto.response.dog.DogResponse;
+import com.daengddang.daengdong_map.dto.response.dog.DogResponse;
 import com.daengddang.daengdong_map.repository.BreedRepository;
 import com.daengddang.daengdong_map.repository.DogRepository;
 import com.daengddang.daengdong_map.repository.RegionRepository;
@@ -61,4 +64,60 @@ public class DogService {
 
         return DogRegisterResponse.of(saved.getId(), saved.getDogKey());
     }
+
+    @Transactional
+    public DogResponse getDogInfo(Long userId) {
+        User user = userRepository.findById(userId).orElseThrow(
+                () -> new BaseException(ErrorCode.UNAUTHORIZED)
+        );
+
+        Dog dog = dogRepository.findByUser(user).orElse(null);
+
+        if (dog == null) {
+            return null;
+        }
+
+        return DogResponse.from(dog);
+    }
+
+    @Transactional
+    public DogResponse updateDogInfo(Long userId, DogUpdateRequest request) {
+        if (request == null) {
+            throw new BaseException(ErrorCode.INVALID_FORMAT);
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new BaseException(ErrorCode.UNAUTHORIZED));
+
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            throw new BaseException(ErrorCode.UNAUTHORIZED);
+        }
+
+        Dog dog = dogRepository.findByUser(user)
+                .orElseThrow(() -> new BaseException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        Breed breed = breedRepository.findById(request.getBreedId())
+                .orElseThrow(() -> new BaseException(ErrorCode.DOG_BREED_NOT_FOUND));
+
+        Region region = regionRepository.findByIdAndStatus(request.getRegionId(), RegionStatus.ACTIVE)
+                .orElseThrow(() -> new BaseException(ErrorCode.REGION_NOT_FOUND));
+
+        boolean isNeutered = request.getIsNeutered() != null && request.getIsNeutered();
+
+        dog.updateProfile(
+                request.getName().trim(),
+                request.getBirthDate(),
+                request.getGender(),
+                isNeutered,
+                request.getWeight().floatValue(),
+                request.getProfileImageUrl(),
+                breed,
+                region
+        );
+
+        user.updateRegion(region);
+
+        return DogResponse.from(dog);
+    }
+
 }

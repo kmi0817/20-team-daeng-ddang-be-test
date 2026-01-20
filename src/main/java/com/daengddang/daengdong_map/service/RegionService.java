@@ -1,9 +1,10 @@
-package com.daengddang.daengdong_map.service.user;
+package com.daengddang.daengdong_map.service;
 
 import com.daengddang.daengdong_map.common.ErrorCode;
 import com.daengddang.daengdong_map.common.exception.BaseException;
 import com.daengddang.daengdong_map.domain.region.Region;
 import com.daengddang.daengdong_map.domain.region.RegionStatus;
+import com.daengddang.daengdong_map.dto.response.region.RegionResponse;
 import com.daengddang.daengdong_map.dto.response.user.RegionListResponse;
 import com.daengddang.daengdong_map.repository.RegionRepository;
 import java.util.List;
@@ -31,5 +32,13 @@ public class RegionService {
         }
 
         return RegionListResponse.from(regions);
+    }
+
+    public RegionResponse getRegion(Long regionId) {
+        Region region = regionRepository.findById(regionId).orElseThrow(
+                () -> new BaseException(ErrorCode.REGION_NOT_FOUND)
+        );
+
+        return RegionResponse.from(region);
     }
 }

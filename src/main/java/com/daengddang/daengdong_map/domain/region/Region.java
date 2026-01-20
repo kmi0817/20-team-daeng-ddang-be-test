@@ -64,4 +64,11 @@ public class Region extends BaseTimeEntity {
     public void changeParent(Region parent) {
         this.parent = parent;
     }
+
+    public String getFullName() {
+        if (parent == null) {
+            return name;
+        }
+        return parent.getName() + " " + name;
+    }
 }

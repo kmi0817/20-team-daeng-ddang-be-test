@@ -37,17 +37,4 @@ public class DogController {
         );
     }
 
-    @PostMapping
-    public ApiResponse<DogRegisterResponse> registerDog(
-            @AuthenticationPrincipal AuthUser authUser,
-            @Valid @RequestBody DogRegisterRequest request
-    ) {
-        if (authUser == null) {
-            throw new BaseException(ErrorCode.UNAUTHORIZED);
-        }
-        return ApiResponse.success(
-                "강아지 정보 등록에 성공했습니다.",
-                dogService.registerDog(authUser.getUserId(), request)
-        );
-    }
 }
