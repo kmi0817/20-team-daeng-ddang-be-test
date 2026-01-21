@@ -1,6 +1,7 @@
 package com.daengddang.daengdong_map.controller;
 
 import com.daengddang.daengdong_map.common.ApiResponse;
+import com.daengddang.daengdong_map.common.SuccessCode;
 import com.daengddang.daengdong_map.dto.response.region.RegionResponse;
 import com.daengddang.daengdong_map.service.RegionService;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +19,6 @@ public class RegionController {
 
     @GetMapping
     public ApiResponse<RegionResponse> getRegion(@RequestParam Long regionId) {
-        return ApiResponse.success("지역 조회에 성공했습니다.", regionService.getRegion(regionId));
+        return ApiResponse.success(SuccessCode.REGION_RETRIEVED, regionService.getRegion(regionId));
     }
 }

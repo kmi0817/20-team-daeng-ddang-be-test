@@ -1,6 +1,7 @@
 package com.daengddang.daengdong_map.controller;
 
 import com.daengddang.daengdong_map.common.ApiResponse;
+import com.daengddang.daengdong_map.common.SuccessCode;
 import com.daengddang.daengdong_map.dto.response.dog.BreedListResponse;
 import com.daengddang.daengdong_map.service.BreedService;
 import com.daengddang.daengdong_map.service.DogService;
@@ -23,7 +24,7 @@ public class DogController {
             @RequestParam(name = "keyword", required = false) String keyword
     ) {
         return ApiResponse.success(
-                "강아지 종 목록 조회에 성공했습니다.",
+                SuccessCode.DOG_BREED_LIST_RETRIEVED,
                 breedService.getBreeds(keyword)
         );
     }

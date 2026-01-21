@@ -2,6 +2,7 @@ package com.daengddang.daengdong_map.controller;
 
 import com.daengddang.daengdong_map.common.ApiResponse;
 import com.daengddang.daengdong_map.common.ErrorCode;
+import com.daengddang.daengdong_map.common.SuccessCode;
 import com.daengddang.daengdong_map.common.exception.BaseException;
 import com.daengddang.daengdong_map.dto.request.dog.DogRegisterRequest;
 import com.daengddang.daengdong_map.dto.request.dog.DogUpdateRequest;
@@ -39,7 +40,7 @@ public class UserController {
             throw new BaseException(ErrorCode.UNAUTHORIZED);
         }
         return ApiResponse.success(
-                "사용자 정보 등록에 성공했습니다.",
+                SuccessCode.USER_INFO_REGISTERED,
                 userService.registerUserInfo(authUser.getUserId(), request)
         );
     }
@@ -53,7 +54,7 @@ public class UserController {
             throw new BaseException(ErrorCode.UNAUTHORIZED);
         }
         return ApiResponse.success(
-                "사용자 정보 수정에 성공했습니다.",
+                SuccessCode.USER_INFO_UPDATED,
                 userService.updateUserInfo(authUser.getUserId(), request)
         );
     }
@@ -63,7 +64,7 @@ public class UserController {
             @RequestParam(name = "parentId", required = false) Long parentId
     ) {
         return ApiResponse.success(
-                "지역 목록 조회에 성공했습니다.",
+                SuccessCode.REGION_LIST_RETRIEVED,
                 regionService.getRegions(parentId)
         );
     }
@@ -74,7 +75,7 @@ public class UserController {
             throw new BaseException(ErrorCode.UNAUTHORIZED);
         }
 
-        return ApiResponse.success("사용자 정보 조회에 성공했습니다.", userService.getUserInfo(authUser.getUserId()));
+        return ApiResponse.success(SuccessCode.USER_INFO_RETRIEVED, userService.getUserInfo(authUser.getUserId()));
     }
 
     @PostMapping("/dogs")
@@ -86,7 +87,7 @@ public class UserController {
             throw new BaseException(ErrorCode.UNAUTHORIZED);
         }
         return ApiResponse.success(
-                "강아지 정보 등록에 성공했습니다.",
+                SuccessCode.DOG_REGISTERED,
                 dogService.registerDog(authUser.getUserId(), request)
         );
     }
@@ -97,7 +98,7 @@ public class UserController {
             throw new BaseException(ErrorCode.UNAUTHORIZED);
         }
 
-        return ApiResponse.success("강아지 정보 조회에 성공했습니다.", dogService.getDogInfo(authUser.getUserId()));
+        return ApiResponse.success(SuccessCode.DOG_INFO_RETRIEVED, dogService.getDogInfo(authUser.getUserId()));
     }
 
     @PatchMapping("/dogs")
@@ -110,7 +111,7 @@ public class UserController {
         }
 
         return ApiResponse.success(
-                "강아지 정보 수정에 성공했습니다.",
+                SuccessCode.DOG_INFO_UPDATED,
                 dogService.updateDogInfo(authUser.getUserId(), request)
         );
     }

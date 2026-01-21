@@ -15,13 +15,12 @@ public class ApiResponse<T> {
         this.errorCode = errorCode;
     }
 
-
-    public static <T> ApiResponse<T> success(String message, T data) {
-        return new ApiResponse<>(message, data, null);
+    public static <T> ApiResponse<T> success(SuccessCode successCode, T data) {
+        return new ApiResponse<>(successCode.getMessage(), data, null);
     }
 
-    public static ApiResponse<Void> success(String message) {
-        return new ApiResponse<>(message, null, null);
+    public static ApiResponse<Void> success(SuccessCode successCode) {
+        return new ApiResponse<>(successCode.getMessage(), null, null);
     }
 
     public static ApiResponse<Void> error(ErrorCode errorCode) {
