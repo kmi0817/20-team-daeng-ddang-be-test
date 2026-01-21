@@ -1,6 +1,7 @@
 package com.daengddang.daengdong_map.controller;
 
 import com.daengddang.daengdong_map.common.ApiResponse;
+import com.daengddang.daengdong_map.common.SuccessCode;
 import com.daengddang.daengdong_map.dto.request.walk.WalkEndRequest;
 import com.daengddang.daengdong_map.dto.request.walk.WalkStartRequest;
 import com.daengddang.daengdong_map.dto.response.walk.OccupiedBlockListResponse;
@@ -31,7 +32,7 @@ public class WalkController {
             @Valid @RequestBody WalkStartRequest request
     ) {
         WalkStartResponse response = walkService.startWalk(authUser.getUserId(), request);
-        return ApiResponse.success("산책이 시작되었습니다.", response);
+        return ApiResponse.success(SuccessCode.WALK_STARTED, response);
     }
 
     @PostMapping("/{walkId}")
@@ -41,7 +42,7 @@ public class WalkController {
             @Valid @RequestBody WalkEndRequest request
     ) {
         WalkEndResponse response = walkService.endWalk(authUser.getUserId(), walkId, request);
-        return ApiResponse.success("산책이 정상적으로 종료되었습니다.", response);
+        return ApiResponse.success(SuccessCode.WALK_ENDED, response);
     }
 
     @GetMapping("/{walkId}/blocks")
@@ -50,6 +51,6 @@ public class WalkController {
             @PathVariable Long walkId
     ) {
         OccupiedBlockListResponse response = walkService.getOccupiedBlocks(authUser.getUserId(), walkId);
-        return ApiResponse.success("점유 블록 조회에 성공했습니다.", response);
+        return ApiResponse.success(SuccessCode.OCCUPIED_BLOCKS_RETRIEVED, response);
     }
 }

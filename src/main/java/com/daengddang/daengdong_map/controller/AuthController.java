@@ -2,6 +2,7 @@ package com.daengddang.daengdong_map.controller;
 
 import com.daengddang.daengdong_map.common.ApiResponse;
 import com.daengddang.daengdong_map.common.ErrorCode;
+import com.daengddang.daengdong_map.common.SuccessCode;
 import com.daengddang.daengdong_map.common.exception.BaseException;
 import com.daengddang.daengdong_map.domain.user.User;
 import com.daengddang.daengdong_map.dto.request.auth.KakaoLoginRequest;
@@ -52,7 +53,7 @@ public class AuthController {
         setRefreshTokenCookie(response, tokenPair.getRefreshToken());
 
         return ApiResponse.success(
-                "로그인에 성공했습니다.",
+                SuccessCode.LOGIN_SUCCESS,
                 AuthTokenResponse.of(
                         tokenPair.getAccessToken(),
                         loginResult.isNewUser(),
@@ -75,7 +76,7 @@ public class AuthController {
     @GetMapping("/authorize-url")
     public ApiResponse<String> getAuthorizeUrl() {
         return ApiResponse.success(
-                "카카오 로그인 URL을 생성했습니다.",
+                SuccessCode.KAKAO_LOGIN_URL_CREATED,
                 buildAuthorizeUrl()
         );
     }
@@ -94,7 +95,7 @@ public class AuthController {
                 authTokenService.reissueAccessToken(refreshToken);
 
         return ApiResponse.success(
-                "토큰이 갱신되었습니다.",
+                SuccessCode.TOKEN_REFRESHED,
                 AuthTokenResponse.of(
                         newAccessToken,
                         false,
@@ -116,7 +117,7 @@ public class AuthController {
         authTokenService.logout(userId);
         clearRefreshTokenCookie(response);
 
-        return ApiResponse.success("로그아웃 되었습니다.", null);
+        return ApiResponse.success(SuccessCode.LOGOUT_SUCCESS);
     }
 
     @GetMapping("/callback")
@@ -134,7 +135,7 @@ public class AuthController {
             data.put("state", state);
         }
 
-        return ApiResponse.success("인가 코드가 전달되었습니다.", data);
+        return ApiResponse.success(SuccessCode.AUTHORIZATION_CODE_DELIVERED, data);
     }
 
     /* ================= Cookie ================= */
