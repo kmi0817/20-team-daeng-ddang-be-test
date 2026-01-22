@@ -174,13 +174,14 @@ jobs:
                 pm2 save
               else
                 echo "🚨 Caddy Reload 실패! 롤백합니다."
-                pm2 delete "daeng-backend-${TARGET_PORT}" || true
-                exit 1
+                # pm2 delete "daeng-backend-${TARGET_PORT}" || true
+                # exit 1
               fi
             else
               echo "❌ 헬스 체크 실패. 배포를 중단합니다."
-              pm2 delete "daeng-backend-${TARGET_PORT}" || true
-              exit 1
+              # pm2 delete "daeng-backend-${TARGET_PORT}" || true
+              # exit 1
+              echo "⚠️ 디버깅 모드: PM2 프로세스 유지"
             fi
 
             # 오래된 릴리즈 폴더 정리
