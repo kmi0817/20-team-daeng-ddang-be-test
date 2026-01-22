@@ -1,0 +1,29 @@
+package com.daengddang.daengdong_map.dto.websocket.inbound;
+
+import java.time.LocalDateTime;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Getter;
+
+@Getter
+public class LocationUpdatePayload {
+
+    private final double lat;
+    private final double lng;
+    private final LocalDateTime timestamp;
+
+    @JsonCreator
+    public LocationUpdatePayload(
+            @JsonProperty("lat") double lat,
+            @JsonProperty("lng") double lng,
+            @JsonProperty("timestamp") LocalDateTime timestamp
+    ) {
+        this.lat = lat;
+        this.lng = lng;
+        this.timestamp = timestamp;
+    }
+
+    public static LocationUpdatePayload of(double lat, double lng, LocalDateTime timestamp) {
+        return new LocationUpdatePayload(lat, lng, timestamp);
+    }
+}

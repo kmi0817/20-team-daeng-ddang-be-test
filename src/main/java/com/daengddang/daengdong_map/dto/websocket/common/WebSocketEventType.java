@@ -1,4 +1,4 @@
-package com.daengddang.daengdong_map.dto.websocket;
+package com.daengddang.daengdong_map.dto.websocket.common;
 
 public enum WebSocketEventType {
     CONNECTED,
@@ -8,5 +8,6 @@ public enum WebSocketEventType {
     BLOCK_TAKEN,
     BLOCKS_SYNC,
     WALK_ENDED,
-    ERROR
+    ERROR,
+    TEST_BROADCAST
 }
