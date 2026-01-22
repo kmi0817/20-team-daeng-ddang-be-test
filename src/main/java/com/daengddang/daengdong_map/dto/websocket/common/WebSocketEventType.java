@@ -8,6 +8,5 @@ public enum WebSocketEventType {
     BLOCK_TAKEN,
     BLOCKS_SYNC,
     WALK_ENDED,
-    ERROR,
-    TEST_BROADCAST
+    ERROR
 }
