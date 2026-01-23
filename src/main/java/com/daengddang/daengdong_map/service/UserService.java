@@ -23,15 +23,15 @@ public class UserService {
     private final RegionRepository regionRepository;
 
     @Transactional
-    public UserRegisterResponse registerUserInfo(Long userId, UserRegisterRequest request) {
-        if (request == null || request.getRegionId() == null) {
+    public UserRegisterResponse registerUserInfo(Long userId, UserRegisterRequest dto) {
+        if (dto == null || dto.getRegionId() == null) {
             throw new BaseException(ErrorCode.INVALID_FORMAT);
         }
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BaseException(ErrorCode.UNAUTHORIZED));
 
-        Region region = regionRepository.findByIdAndStatus(request.getRegionId(), RegionStatus.ACTIVE)
+        Region region = regionRepository.findByIdAndStatus(dto.getRegionId(), RegionStatus.ACTIVE)
                 .orElseThrow(() -> new BaseException(ErrorCode.REGION_NOT_FOUND));
 
         user.updateRegion(region);

@@ -34,28 +34,28 @@ public class UserController {
     @PostMapping
     public ApiResponse<UserRegisterResponse> registerUserInfo(
             @AuthenticationPrincipal AuthUser authUser,
-            @Valid @RequestBody UserRegisterRequest request
+            @Valid @RequestBody UserRegisterRequest dto
     ) {
         if (authUser == null) {
             throw new BaseException(ErrorCode.UNAUTHORIZED);
         }
         return ApiResponse.success(
                 SuccessCode.USER_INFO_REGISTERED,
-                userService.registerUserInfo(authUser.getUserId(), request)
+                userService.registerUserInfo(authUser.getUserId(), dto)
         );
     }
 
     @PatchMapping
     public ApiResponse<UserInfoResponse> updateUserInfo(
             @AuthenticationPrincipal AuthUser authUser,
-            @Valid @RequestBody UserUpdateRequest request
+            @Valid @RequestBody UserUpdateRequest dto
     ) {
         if (authUser == null) {
             throw new BaseException(ErrorCode.UNAUTHORIZED);
         }
         return ApiResponse.success(
                 SuccessCode.USER_INFO_UPDATED,
-                userService.updateUserInfo(authUser.getUserId(), request)
+                userService.updateUserInfo(authUser.getUserId(), dto)
         );
     }
 
@@ -81,14 +81,14 @@ public class UserController {
     @PostMapping("/dogs")
     public ApiResponse<DogRegisterResponse> registerDog(
             @AuthenticationPrincipal AuthUser authUser,
-            @Valid @RequestBody DogRegisterRequest request
+            @Valid @RequestBody DogRegisterRequest dto
     ) {
         if (authUser == null) {
             throw new BaseException(ErrorCode.UNAUTHORIZED);
         }
         return ApiResponse.success(
                 SuccessCode.DOG_REGISTERED,
-                dogService.registerDog(authUser.getUserId(), request)
+                dogService.registerDog(authUser.getUserId(), dto)
         );
     }
 
@@ -104,7 +104,7 @@ public class UserController {
     @PatchMapping("/dogs")
     public ApiResponse<DogResponse> updateDogInfo(
             @AuthenticationPrincipal AuthUser authUser,
-            @Valid @RequestBody DogUpdateRequest request
+            @Valid @RequestBody DogUpdateRequest dto
     ) {
         if (authUser == null) {
             throw new BaseException(ErrorCode.UNAUTHORIZED);
@@ -112,7 +112,7 @@ public class UserController {
 
         return ApiResponse.success(
                 SuccessCode.DOG_INFO_UPDATED,
-                dogService.updateDogInfo(authUser.getUserId(), request)
+                dogService.updateDogInfo(authUser.getUserId(), dto)
         );
     }
 }

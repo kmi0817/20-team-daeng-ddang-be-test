@@ -35,16 +35,16 @@ public class S3PresignedUrlService {
     private String bucket;
 
     @Transactional(readOnly = true)
-    public PresignedUrlResponse issuePresignedUrl(Long userId, PresignedUrlRequest request) {
-        if (request == null) {
+    public PresignedUrlResponse issuePresignedUrl(Long userId, PresignedUrlRequest dto) {
+        if (dto == null) {
             throw new BaseException(ErrorCode.INVALID_FORMAT);
         }
 
         userRepository.findById(userId)
                 .orElseThrow(() -> new BaseException(ErrorCode.UNAUTHORIZED));
 
-        String contentType = request.getContentType().trim();
-        validateContentType(request.getFileType(), contentType);
+        String contentType = dto.getContentType().trim();
+        validateContentType(dto.getFileType(), contentType);
 
         String extension = resolveExtension(contentType);
         if (extension == null) {
@@ -52,7 +52,7 @@ public class S3PresignedUrlService {
         }
 
         String objectKey = buildObjectKey(
-                request.getUploadContext().name().toLowerCase(Locale.ROOT),
+                dto.getUploadContext().name().toLowerCase(Locale.ROOT),
                 extension
         );
 

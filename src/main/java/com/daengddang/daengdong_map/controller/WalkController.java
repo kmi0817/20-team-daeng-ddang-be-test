@@ -29,9 +29,9 @@ public class WalkController {
     @PostMapping
     public ApiResponse<WalkStartResponse> startWalk(
             @AuthenticationPrincipal AuthUser authUser,
-            @Valid @RequestBody WalkStartRequest request
+            @Valid @RequestBody WalkStartRequest dto
     ) {
-        WalkStartResponse response = walkService.startWalk(authUser.getUserId(), request);
+        WalkStartResponse response = walkService.startWalk(authUser.getUserId(), dto);
         return ApiResponse.success(SuccessCode.WALK_STARTED, response);
     }
 
@@ -39,9 +39,9 @@ public class WalkController {
     public ApiResponse<WalkEndResponse> endWalk(
             @AuthenticationPrincipal AuthUser authUser,
             @PathVariable Long walkId,
-            @Valid @RequestBody WalkEndRequest request
+            @Valid @RequestBody WalkEndRequest dto
     ) {
-        WalkEndResponse response = walkService.endWalk(authUser.getUserId(), walkId, request);
+        WalkEndResponse response = walkService.endWalk(authUser.getUserId(), walkId, dto);
         return ApiResponse.success(SuccessCode.WALK_ENDED, response);
     }
 

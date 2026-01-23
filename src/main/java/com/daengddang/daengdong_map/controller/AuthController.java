@@ -40,11 +40,11 @@ public class AuthController {
      */
     @PostMapping("/login")
     public ApiResponse<AuthTokenResponse> kakaoLogin(
-            @RequestBody KakaoLoginRequest request,
+            @RequestBody KakaoLoginRequest dto,
             HttpServletResponse response
     ) {
         KakaoOAuthUser oauthUser =
-                kakaoOAuthService.authenticate(request.getCode());
+                kakaoOAuthService.authenticate(dto.getCode());
 
         AuthService.LoginResult loginResult = authService.loginOrRegister(oauthUser);
         User user = loginResult.user();

@@ -40,9 +40,9 @@ public class WalkService {
     private final BlockOwnershipRepository blockOwnershipRepository;
 
     @Transactional
-    public WalkStartResponse startWalk(Long userId, WalkStartRequest request) {
+    public WalkStartResponse startWalk(Long userId, WalkStartRequest dto) {
 
-        if (request == null) {
+        if (dto == null) {
             throw new BaseException(ErrorCode.INVALID_FORMAT);
         }
 
@@ -68,8 +68,8 @@ public class WalkService {
 
         WalkPoint startPoint = WalkPoint.builder()
                 .walk(saved)
-                .latitude(request.getStartLat())
-                .longitude(request.getStartLng())
+                .latitude(dto.getStartLat())
+                .longitude(dto.getStartLng())
                 .recordedAt(now)
                 .build();
 

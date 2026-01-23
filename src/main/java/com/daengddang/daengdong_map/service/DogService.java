@@ -30,28 +30,28 @@ public class DogService {
     private final RegionRepository regionRepository;
 
     @Transactional
-    public DogRegisterResponse registerDog(Long userId, DogRegisterRequest request) {
+    public DogRegisterResponse registerDog(Long userId, DogRegisterRequest dto) {
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new BaseException(ErrorCode.UNAUTHORIZED));
 
-        String name = request.getName().trim();
-        Long breedId = request.getBreedId();
-        Float weight = request.getWeight().floatValue();
+        String name = dto.getName().trim();
+        Long breedId = dto.getBreedId();
+        Float weight = dto.getWeight().floatValue();
 
         Breed breed = breedRepository.findById(breedId)
                 .orElseThrow(() -> new BaseException(ErrorCode.DOG_BREED_NOT_FOUND));
 
-        boolean isNeutered = request.getIsNeutered() != null && request.getIsNeutered();
+        boolean isNeutered = dto.getIsNeutered() != null && dto.getIsNeutered();
 
         Dog dog = Dog.builder()
                 .name(name)
                 .breed(breed)
-                .birthDate(request.getBirthDate())
-                .gender(request.getGender())
+                .birthDate(dto.getBirthDate())
+                .gender(dto.getGender())
                 .isNeutered(isNeutered)
                 .weight(weight)
-                .profileImageUrl(request.getProfileImageUrl())
+                .profileImageUrl(dto.getProfileImageUrl())
                 .user(user)
                 .build();
 
@@ -76,8 +76,8 @@ public class DogService {
     }
 
     @Transactional
-    public DogResponse updateDogInfo(Long userId, DogUpdateRequest request) {
-        if (request == null) {
+    public DogResponse updateDogInfo(Long userId, DogUpdateRequest dto) {
+        if (dto == null) {
             throw new BaseException(ErrorCode.INVALID_FORMAT);
         }
 
@@ -87,18 +87,18 @@ public class DogService {
         Dog dog = dogRepository.findByUser(user)
                 .orElseThrow(() -> new BaseException(ErrorCode.RESOURCE_NOT_FOUND));
 
-        Breed breed = breedRepository.findById(request.getBreedId())
+        Breed breed = breedRepository.findById(dto.getBreedId())
                 .orElseThrow(() -> new BaseException(ErrorCode.DOG_BREED_NOT_FOUND));
 
-        boolean isNeutered = request.getIsNeutered() != null && request.getIsNeutered();
+        boolean isNeutered = dto.getIsNeutered() != null && dto.getIsNeutered();
 
         dog.updateProfile(
-                request.getName().trim(),
-                request.getBirthDate(),
-                request.getGender(),
+                dto.getName().trim(),
+                dto.getBirthDate(),
+                dto.getGender(),
                 isNeutered,
-                request.getWeight().floatValue(),
-                request.getProfileImageUrl(),
+                dto.getWeight().floatValue(),
+                dto.getProfileImageUrl(),
                 breed
         );
 
