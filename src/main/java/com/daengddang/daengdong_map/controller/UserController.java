@@ -13,6 +13,7 @@ import com.daengddang.daengdong_map.dto.response.dog.DogResponse;
 import com.daengddang.daengdong_map.dto.response.user.RegionListResponse;
 import com.daengddang.daengdong_map.dto.response.user.UserInfoResponse;
 import com.daengddang.daengdong_map.dto.response.user.UserRegisterResponse;
+import com.daengddang.daengdong_map.dto.response.user.UserSummaryResponse;
 import com.daengddang.daengdong_map.security.AuthUser;
 import com.daengddang.daengdong_map.service.DogService;
 import com.daengddang.daengdong_map.service.RegionService;
@@ -43,6 +44,14 @@ public class UserController {
                 SuccessCode.USER_INFO_REGISTERED,
                 userService.registerUserInfo(authUser.getUserId(), dto)
         );
+    }
+
+    @GetMapping
+    public ApiResponse<UserSummaryResponse> getUserSummary(
+            @AuthenticationPrincipal AuthUser authUser
+    ) {
+        UserSummaryResponse response = userService.getMyPageSummary(authUser.getUserId());
+        return ApiResponse.success(SuccessCode.MY_PAGE_SUMMARY_RETRIEVED, response);
     }
 
     @PatchMapping

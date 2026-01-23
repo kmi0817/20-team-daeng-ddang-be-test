@@ -1,6 +1,6 @@
 package com.daengddang.daengdong_map.dto.response.auth;
 
-import com.daengddang.daengdong_map.dto.response.user.UserResponse;
+import com.daengddang.daengdong_map.dto.response.user.UserLoginResponse;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -11,12 +11,12 @@ public class AuthTokenResponse {
     private final String accessToken;
     @Getter(AccessLevel.NONE)
     private final boolean isNewUser;
-    private final UserResponse user;
+    private final UserLoginResponse user;
 
     private AuthTokenResponse(
             String accessToken,
             boolean isNewUser,
-            UserResponse user
+            UserLoginResponse user
     ) {
         this.accessToken = accessToken;
         this.isNewUser = isNewUser;
@@ -31,7 +31,7 @@ public class AuthTokenResponse {
         return new AuthTokenResponse(
                 accessToken,
                 isNewUser,
-                UserResponse.from(userId)
+                UserLoginResponse.from(userId)
         );
     }
 
