@@ -39,12 +39,12 @@ public class WalkRealtimeService {
     private final WalkRepository walkRepository;
     private final BlockRepository blockRepository;
     private final BlockOwnershipRepository blockOwnershipRepository;
+    private final WalkPointWriter walkPointWriter;
     private final ConcurrentMap<Long, StayState> stayStates = new ConcurrentHashMap<>();
 
     @Transactional
     public void handleLocationUpdate(Long walkId, LocationUpdatePayload payload, Principal principal) {
         // TODO: walk 상태/권한 검증 + 점유/탈취 로직
-        // 클라이언트 시간은 신뢰하지 않고 서버 시간을 사용한다.
         LocalDateTime timestamp = LocalDateTime.now();
 
         Walk walk = walkRepository.findById(walkId)
@@ -58,6 +58,8 @@ public class WalkRealtimeService {
             sendError(walkId, WebSocketErrorReason.INVALID_LOCATION.getMessage());
             return;
         }
+
+        walkPointWriter.save(walk, payload.getLat(), payload.getLng(), timestamp);
 
         int blockX = BlockIdUtil.toBlockX(payload.getLat());
         int blockY = BlockIdUtil.toBlockY(payload.getLng());
