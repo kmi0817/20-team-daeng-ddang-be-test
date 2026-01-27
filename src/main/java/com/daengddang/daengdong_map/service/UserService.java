@@ -80,7 +80,7 @@ public class UserService {
 
         Dog dog = dogRepository.findByUser(user).orElse(null);
         if (dog == null) {
-            return UserSummaryResponse.of(regionName, null, null, 0, 0.0);
+            return UserSummaryResponse.of(regionName, null, null, null, 0, 0.0);
         }
 
         WalkSummary summary = walkRepository.findSummaryByDogAndStatus(dog, WalkStatus.FINISHED);
@@ -91,6 +91,7 @@ public class UserService {
         return UserSummaryResponse.of(
                 regionName,
                 dog.getId(),
+                dog.getProfileImageUrl(),
                 dog.getName(),
                 Math.toIntExact(totalCount),
                 totalDistanceKm
