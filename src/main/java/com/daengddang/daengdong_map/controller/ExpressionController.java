@@ -2,10 +2,10 @@ package com.daengddang.daengdong_map.controller;
 
 import com.daengddang.daengdong_map.common.ApiResponse;
 import com.daengddang.daengdong_map.common.SuccessCode;
-import com.daengddang.daengdong_map.dto.request.expression.FaceAnalyzeRequest;
-import com.daengddang.daengdong_map.dto.response.expression.FaceAnalyzeResponse;
+import com.daengddang.daengdong_map.dto.request.expression.ExpressionAnalyzeRequest;
+import com.daengddang.daengdong_map.dto.response.expression.ExpressionAnalyzeResponse;
 import com.daengddang.daengdong_map.security.AuthUser;
-import com.daengddang.daengdong_map.service.FaceAnalyzeService;
+import com.daengddang.daengdong_map.service.ExpressionAnalyzeService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,17 +22,16 @@ import org.springframework.web.bind.annotation.RestController;
 @RequiredArgsConstructor
 public class ExpressionController {
 
-    private final FaceAnalyzeService faceAnalyzeService;
+    private final ExpressionAnalyzeService expressionAnalyzeService;
 
     @PostMapping("/analysis")
-    public ApiResponse<FaceAnalyzeResponse> analyze(
+    public ApiResponse<ExpressionAnalyzeResponse> analyze(
             @AuthenticationPrincipal AuthUser authUser,
             @PathVariable Long walkId,
-            @Valid @RequestBody FaceAnalyzeRequest request
+            @Valid @RequestBody ExpressionAnalyzeRequest dto
     ) {
-        log.info("표정분석 실행");
-        FaceAnalyzeResponse response =
-                faceAnalyzeService.analyze(authUser.getUserId(), walkId, request);
+        ExpressionAnalyzeResponse response =
+                expressionAnalyzeService.analyze(authUser.getUserId(), walkId, dto);
         return ApiResponse.success(SuccessCode.EMOTION_ANALYSIS_RESULT_CREATED, response);
     }
 }

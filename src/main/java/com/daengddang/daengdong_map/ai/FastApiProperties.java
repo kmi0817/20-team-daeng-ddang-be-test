@@ -10,5 +10,5 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class FastApiProperties {
 
     private String missionJudgeUri;
-    private String faceAnalyzeUri;
+    private String expressionAnalyzeUri;
 }

@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 
 @Getter
-public class FastApiFaceAnalyzeResponse {
+public class FastApiExpressionAnalyzeResponse {
 
     @JsonProperty("analysis_id")
     private String analysisId;

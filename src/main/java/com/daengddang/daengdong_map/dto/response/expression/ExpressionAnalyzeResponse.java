@@ -5,7 +5,7 @@ import lombok.Builder;
 import lombok.Getter;
 
 @Getter
-public class FaceAnalyzeResponse {
+public class ExpressionAnalyzeResponse {
 
     @JsonProperty("analysis_id")
     private final String analysisId;
@@ -23,11 +23,11 @@ public class FaceAnalyzeResponse {
     private final EmotionProbabilities emotionProbabilities;
 
     @Builder
-    private FaceAnalyzeResponse(String analysisId,
-                                String predictedEmotion,
-                                String summary,
-                                String videoUrl,
-                                EmotionProbabilities emotionProbabilities) {
+    private ExpressionAnalyzeResponse(String analysisId,
+                                      String predictedEmotion,
+                                      String summary,
+                                      String videoUrl,
+                                      EmotionProbabilities emotionProbabilities) {
         this.analysisId = analysisId;
         this.predictedEmotion = predictedEmotion;
         this.videoUrl = videoUrl;
@@ -35,12 +35,12 @@ public class FaceAnalyzeResponse {
         this.emotionProbabilities = emotionProbabilities;
     }
 
-    public static FaceAnalyzeResponse from(String analysisId,
-                                           String predictedEmotion,
-                                           String videoUrl,
-                                           String summary,
-                                           EmotionProbabilities emotionProbabilities) {
-        return FaceAnalyzeResponse.builder()
+    public static ExpressionAnalyzeResponse from(String analysisId,
+                                                 String predictedEmotion,
+                                                 String videoUrl,
+                                                 String summary,
+                                                 EmotionProbabilities emotionProbabilities) {
+        return ExpressionAnalyzeResponse.builder()
                 .analysisId(analysisId)
                 .predictedEmotion(predictedEmotion)
                 .videoUrl(videoUrl)
