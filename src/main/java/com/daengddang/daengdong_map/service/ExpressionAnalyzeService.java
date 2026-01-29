@@ -7,10 +7,10 @@ import com.daengddang.daengdong_map.domain.dog.Dog;
 import com.daengddang.daengdong_map.domain.expression.Expression;
 import com.daengddang.daengdong_map.domain.user.User;
 import com.daengddang.daengdong_map.domain.walk.Walk;
-import com.daengddang.daengdong_map.dto.request.expression.FaceAnalyzeRequest;
-import com.daengddang.daengdong_map.dto.request.expression.FastApiFaceAnalyzeRequest;
-import com.daengddang.daengdong_map.dto.response.expression.FaceAnalyzeResponse;
-import com.daengddang.daengdong_map.dto.response.expression.FastApiFaceAnalyzeResponse;
+import com.daengddang.daengdong_map.dto.request.expression.ExpressionAnalyzeRequest;
+import com.daengddang.daengdong_map.dto.request.expression.FastApiExpressionAnalyzeRequest;
+import com.daengddang.daengdong_map.dto.response.expression.ExpressionAnalyzeResponse;
+import com.daengddang.daengdong_map.dto.response.expression.FastApiExpressionAnalyzeResponse;
 import com.daengddang.daengdong_map.repository.DogRepository;
 import com.daengddang.daengdong_map.repository.ExpressionRepository;
 import com.daengddang.daengdong_map.repository.UserRepository;
@@ -24,7 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Slf4j
 @RequiredArgsConstructor
-public class FaceAnalyzeService {
+public class ExpressionAnalyzeService {
 
     private final UserRepository userRepository;
     private final DogRepository dogRepository;
@@ -33,10 +33,9 @@ public class FaceAnalyzeService {
     private final FastApiClient fastApiClient;
 
     @Transactional
-    public FaceAnalyzeResponse analyze(Long userId, Long walkId, FaceAnalyzeRequest request) {
+    public ExpressionAnalyzeResponse analyze(Long userId, Long walkId, ExpressionAnalyzeRequest dto) {
 
-        log.info("표정분석 서비스!");
-        if (request == null) {
+        if (dto == null) {
             throw new BaseException(ErrorCode.INVALID_FORMAT);
         }
 
@@ -50,15 +49,15 @@ public class FaceAnalyzeService {
                 .orElseThrow(() -> new BaseException(ErrorCode.RESOURCE_NOT_FOUND));
 
         String analysisId = UUID.randomUUID().toString();
-        FastApiFaceAnalyzeRequest fastApiRequest =
-                FastApiFaceAnalyzeRequest.of(analysisId, request.getVideoUrl());
-        FastApiFaceAnalyzeResponse fastApiResponse =
-                fastApiClient.requestFaceAnalyze(fastApiRequest);
+        FastApiExpressionAnalyzeRequest fastApiRequest =
+                FastApiExpressionAnalyzeRequest.of(analysisId, dto.getVideoUrl());
+        FastApiExpressionAnalyzeResponse fastApiResponse =
+                fastApiClient.requestExpressionAnalyze(fastApiRequest);
 
         Expression expression = expressionRepository.findByWalk(walk)
                 .orElseGet(() -> toExpression(
                         fastApiResponse,
-                        request.getVideoUrl(),
+                        dto.getVideoUrl(),
                         dog,
                         walk
                 ));
@@ -66,14 +65,14 @@ public class FaceAnalyzeService {
         if (expression.getId() == null) {
             expressionRepository.save(expression);
         } else {
-            updateExpression(expression, fastApiResponse, request.getVideoUrl());
+            updateExpression(expression, fastApiResponse, dto.getVideoUrl());
         }
 
         return toResponse(fastApiResponse, analysisId);
     }
 
     private Expression toExpression(
-            FastApiFaceAnalyzeResponse response,
+            FastApiExpressionAnalyzeResponse response,
             String videoUrl,
             Dog dog,
             Walk walk
@@ -85,7 +84,7 @@ public class FaceAnalyzeService {
             throw new BaseException(ErrorCode.INVALID_FORMAT);
         }
 
-        FastApiFaceAnalyzeResponse.EmotionProbabilities probabilities =
+        FastApiExpressionAnalyzeResponse.EmotionProbabilities probabilities =
                 response.getEmotionProbabilities();
 
         return Expression.builder()
@@ -102,9 +101,9 @@ public class FaceAnalyzeService {
     }
 
     private void updateExpression(Expression expression,
-                                  FastApiFaceAnalyzeResponse response,
+                                  FastApiExpressionAnalyzeResponse response,
                                   String videoUrl) {
-        FastApiFaceAnalyzeResponse.EmotionProbabilities probabilities =
+        FastApiExpressionAnalyzeResponse.EmotionProbabilities probabilities =
                 response.getEmotionProbabilities();
         expression.updateResult(
                 videoUrl,
@@ -117,16 +116,16 @@ public class FaceAnalyzeService {
         );
     }
 
-    private FaceAnalyzeResponse toResponse(FastApiFaceAnalyzeResponse response, String fallbackAnalysisId) {
+    private ExpressionAnalyzeResponse toResponse(FastApiExpressionAnalyzeResponse response, String fallbackAnalysisId) {
         if (response == null || response.getEmotionProbabilities() == null) {
             throw new BaseException(ErrorCode.INVALID_FORMAT);
         }
 
-        FastApiFaceAnalyzeResponse.EmotionProbabilities probabilities =
+        FastApiExpressionAnalyzeResponse.EmotionProbabilities probabilities =
                 response.getEmotionProbabilities();
 
-        FaceAnalyzeResponse.EmotionProbabilities responseProbabilities =
-                FaceAnalyzeResponse.EmotionProbabilities.from(
+        ExpressionAnalyzeResponse.EmotionProbabilities responseProbabilities =
+                ExpressionAnalyzeResponse.EmotionProbabilities.from(
                         probabilities.getAngry(),
                         probabilities.getHappy(),
                         probabilities.getSad(),
@@ -137,7 +136,7 @@ public class FaceAnalyzeService {
                 ? fallbackAnalysisId
                 : response.getAnalysisId();
 
-        return FaceAnalyzeResponse.from(
+        return ExpressionAnalyzeResponse.from(
                 analysisId,
                 response.getPredictedEmotion(),
                 response.getVideoUrl(),

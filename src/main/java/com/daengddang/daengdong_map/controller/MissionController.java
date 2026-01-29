@@ -38,10 +38,10 @@ public class MissionController {
     public ApiResponse<MissionUploadResponse> saveUpload(
             @AuthenticationPrincipal AuthUser authUser,
             @PathVariable Long walkId,
-            @Valid @RequestBody MissionUploadRequest request
+            @Valid @RequestBody MissionUploadRequest dto
     ) {
         MissionUploadResponse response =
-                missionUploadService.saveUpload(authUser.getUserId(), walkId, request);
+                missionUploadService.saveUpload(authUser.getUserId(), walkId, dto);
         return ApiResponse.success(SuccessCode.MISSION_UPLOAD_SAVED, response);
     }
 

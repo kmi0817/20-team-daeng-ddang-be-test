@@ -2,9 +2,9 @@ package com.daengddang.daengdong_map.ai;
 
 import com.daengddang.daengdong_map.common.ErrorCode;
 import com.daengddang.daengdong_map.common.exception.BaseException;
-import com.daengddang.daengdong_map.dto.request.expression.FastApiFaceAnalyzeRequest;
+import com.daengddang.daengdong_map.dto.request.expression.FastApiExpressionAnalyzeRequest;
 import com.daengddang.daengdong_map.dto.request.mission.FastApiMissionJudgeRequest;
-import com.daengddang.daengdong_map.dto.response.expression.FastApiFaceAnalyzeResponse;
+import com.daengddang.daengdong_map.dto.response.expression.FastApiExpressionAnalyzeResponse;
 import com.daengddang.daengdong_map.dto.response.mission.FastApiMissionJudgeResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -31,14 +31,14 @@ public class FastApiClient {
         }
     }
 
-    public FastApiFaceAnalyzeResponse requestFaceAnalyze(FastApiFaceAnalyzeRequest request) {
+    public FastApiExpressionAnalyzeResponse requestExpressionAnalyze(FastApiExpressionAnalyzeRequest request) {
         try {
             return restClient.post()
-                    .uri(fastApiProperties.getFaceAnalyzeUri())
+                    .uri(fastApiProperties.getExpressionAnalyzeUri())
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(request)
                     .retrieve()
-                    .body(FastApiFaceAnalyzeResponse.class);
+                    .body(FastApiExpressionAnalyzeResponse.class);
         } catch (Exception e) {
             throw new BaseException(ErrorCode.AI_SERVER_CONNECTION_FAILED);
         }

@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
 
 @Getter
-public class FastApiFaceAnalyzeRequest {
+public class FastApiExpressionAnalyzeRequest {
 
     @JsonProperty("analysis_id")
     private String analysisId;
@@ -12,12 +12,12 @@ public class FastApiFaceAnalyzeRequest {
     @JsonProperty("video_url")
     private String videoUrl;
 
-    private FastApiFaceAnalyzeRequest(String analysisId, String videoUrl) {
+    private FastApiExpressionAnalyzeRequest(String analysisId, String videoUrl) {
         this.analysisId = analysisId;
         this.videoUrl = videoUrl;
     }
 
-    public static FastApiFaceAnalyzeRequest of(String analysisId, String videoUrl) {
-        return new FastApiFaceAnalyzeRequest(analysisId, videoUrl);
+    public static FastApiExpressionAnalyzeRequest of(String analysisId, String videoUrl) {
+        return new FastApiExpressionAnalyzeRequest(analysisId, videoUrl);
     }
 }
