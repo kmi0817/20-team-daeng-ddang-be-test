@@ -2,6 +2,7 @@ package com.daengddang.daengdong_map.controller;
 
 import com.daengddang.daengdong_map.common.ApiResponse;
 import com.daengddang.daengdong_map.common.SuccessCode;
+import com.daengddang.daengdong_map.controller.api.S3Api;
 import com.daengddang.daengdong_map.dto.request.s3.PresignedUrlRequest;
 import com.daengddang.daengdong_map.dto.response.s3.PresignedUrlResponse;
 import com.daengddang.daengdong_map.security.AuthUser;
@@ -19,12 +20,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v3")
 @RequiredArgsConstructor
-public class S3Controller {
+public class S3Controller implements S3Api {
 
     private final S3PresignedUrlService s3PresignedUrlService;
 
     @PostMapping("/presigned-url")
     @ResponseStatus(HttpStatus.CREATED)
+    @Override
     public ApiResponse<PresignedUrlResponse> issuePresignedUrl(
             @AuthenticationPrincipal AuthUser authUser,
             @Valid @RequestBody PresignedUrlRequest request

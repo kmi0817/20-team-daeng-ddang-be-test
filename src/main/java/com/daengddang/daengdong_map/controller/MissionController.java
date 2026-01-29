@@ -2,6 +2,7 @@ package com.daengddang.daengdong_map.controller;
 
 import com.daengddang.daengdong_map.common.ApiResponse;
 import com.daengddang.daengdong_map.common.SuccessCode;
+import com.daengddang.daengdong_map.controller.api.MissionApi;
 import com.daengddang.daengdong_map.dto.response.mission.MissionJudgeResponse;
 import com.daengddang.daengdong_map.dto.request.mission.MissionUploadRequest;
 import com.daengddang.daengdong_map.dto.response.mission.MissionUploadListResponse;
@@ -18,12 +19,13 @@ import org.springframework.web.bind.annotation.*;
 
 @RequestMapping("/api/v3/walks/{walkId}/missions")
 @RequiredArgsConstructor
-public class MissionController {
+public class MissionController implements MissionApi {
 
     private final MissionJudgeService missionJudgeService;
     private final MissionUploadService missionUploadService;
 
     @PostMapping("/analysis")
+    @Override
     public ApiResponse<MissionJudgeResponse> judgeMissions(
             @AuthenticationPrincipal AuthUser authUser,
             @PathVariable Long walkId
@@ -35,6 +37,7 @@ public class MissionController {
     }
 
     @PostMapping
+    @Override
     public ApiResponse<MissionUploadResponse> saveUpload(
             @AuthenticationPrincipal AuthUser authUser,
             @PathVariable Long walkId,
@@ -46,6 +49,7 @@ public class MissionController {
     }
 
     @GetMapping
+    @Override
     public ApiResponse<MissionUploadListResponse> getUploads(
             @AuthenticationPrincipal AuthUser authUser,
             @PathVariable Long walkId

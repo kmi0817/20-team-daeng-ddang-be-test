@@ -4,6 +4,7 @@ import com.daengddang.daengdong_map.common.ApiResponse;
 import com.daengddang.daengdong_map.common.ErrorCode;
 import com.daengddang.daengdong_map.common.SuccessCode;
 import com.daengddang.daengdong_map.common.exception.BaseException;
+import com.daengddang.daengdong_map.controller.api.UserApi;
 import com.daengddang.daengdong_map.dto.request.dog.DogRegisterRequest;
 import com.daengddang.daengdong_map.dto.request.dog.DogUpdateRequest;
 import com.daengddang.daengdong_map.dto.request.user.UserRegisterRequest;
@@ -26,13 +27,14 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v3/users")
 @RequiredArgsConstructor
-public class UserController {
+public class UserController implements UserApi {
 
     private final UserService userService;
     private final RegionService regionService;
     private final DogService dogService;
 
     @PostMapping
+    @Override
     public ApiResponse<UserRegisterResponse> registerUserInfo(
             @AuthenticationPrincipal AuthUser authUser,
             @Valid @RequestBody UserRegisterRequest dto
@@ -47,6 +49,7 @@ public class UserController {
     }
 
     @GetMapping
+    @Override
     public ApiResponse<UserSummaryResponse> getUserSummary(
             @AuthenticationPrincipal AuthUser authUser
     ) {
@@ -55,6 +58,7 @@ public class UserController {
     }
 
     @PatchMapping
+    @Override
     public ApiResponse<UserInfoResponse> updateUserInfo(
             @AuthenticationPrincipal AuthUser authUser,
             @Valid @RequestBody UserUpdateRequest dto
@@ -69,6 +73,7 @@ public class UserController {
     }
 
     @GetMapping("/regions")
+    @Override
     public ApiResponse<RegionListResponse> getRegions(
             @RequestParam(name = "parentId", required = false) Long parentId
     ) {
@@ -79,6 +84,7 @@ public class UserController {
     }
 
     @GetMapping("/me")
+    @Override
     public ApiResponse<UserInfoResponse> getUserInfo(@AuthenticationPrincipal AuthUser authUser) {
         if (authUser == null) {
             throw new BaseException(ErrorCode.UNAUTHORIZED);
@@ -88,6 +94,7 @@ public class UserController {
     }
 
     @DeleteMapping
+    @Override
     public ApiResponse<Void> withdrawUser(@AuthenticationPrincipal AuthUser authUser) {
         if (authUser == null) {
             throw new BaseException(ErrorCode.UNAUTHORIZED);
@@ -98,6 +105,7 @@ public class UserController {
     }
 
     @PostMapping("/dogs")
+    @Override
     public ApiResponse<DogRegisterResponse> registerDog(
             @AuthenticationPrincipal AuthUser authUser,
             @Valid @RequestBody DogRegisterRequest dto
@@ -112,6 +120,7 @@ public class UserController {
     }
 
     @GetMapping("/dogs")
+    @Override
     public ApiResponse<DogResponse> getDogInfo(@AuthenticationPrincipal AuthUser authUser) {
         if (authUser == null) {
             throw new BaseException(ErrorCode.UNAUTHORIZED);
@@ -121,6 +130,7 @@ public class UserController {
     }
 
     @PatchMapping("/dogs")
+    @Override
     public ApiResponse<DogResponse> updateDogInfo(
             @AuthenticationPrincipal AuthUser authUser,
             @Valid @RequestBody DogUpdateRequest dto

@@ -2,6 +2,7 @@ package com.daengddang.daengdong_map.controller;
 
 import com.daengddang.daengdong_map.common.ApiResponse;
 import com.daengddang.daengdong_map.common.SuccessCode;
+import com.daengddang.daengdong_map.controller.api.BlockApi;
 import com.daengddang.daengdong_map.dto.response.block.NearbyBlockListResponse;
 import com.daengddang.daengdong_map.security.AuthUser;
 import com.daengddang.daengdong_map.service.BlockService;
@@ -15,11 +16,12 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v3/blocks")
 @RequiredArgsConstructor
-public class BlockController {
+public class BlockController implements BlockApi {
 
     private final BlockService blockService;
 
     @GetMapping
+    @Override
     public ApiResponse<NearbyBlockListResponse> getNearbyBlocks(
             @AuthenticationPrincipal AuthUser authUser,
             @RequestParam(name = "lat", required = false) Double lat,

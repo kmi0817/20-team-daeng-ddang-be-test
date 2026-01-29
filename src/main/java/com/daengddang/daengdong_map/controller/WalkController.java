@@ -2,6 +2,7 @@ package com.daengddang.daengdong_map.controller;
 
 import com.daengddang.daengdong_map.common.ApiResponse;
 import com.daengddang.daengdong_map.common.SuccessCode;
+import com.daengddang.daengdong_map.controller.api.WalkApi;
 import com.daengddang.daengdong_map.dto.request.diaries.WalkDiariesCreateRequest;
 import com.daengddang.daengdong_map.dto.request.walk.WalkEndRequest;
 import com.daengddang.daengdong_map.dto.request.walk.WalkStartRequest;
@@ -25,12 +26,13 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v3/walks")
 @RequiredArgsConstructor
-public class WalkController {
+public class WalkController implements WalkApi {
 
     private final WalkService walkService;
     private final WalkDiaryService walkDiaryService;
 
     @PostMapping
+    @Override
     public ApiResponse<WalkStartResponse> startWalk(
             @AuthenticationPrincipal AuthUser authUser,
             @Valid @RequestBody WalkStartRequest dto
@@ -40,6 +42,7 @@ public class WalkController {
     }
 
     @PostMapping("/{walkId}")
+    @Override
     public ApiResponse<WalkEndResponse> endWalk(
             @AuthenticationPrincipal AuthUser authUser,
             @PathVariable Long walkId,
@@ -50,6 +53,7 @@ public class WalkController {
     }
 
     @GetMapping("/{walkId}/blocks")
+    @Override
     public ApiResponse<OccupiedBlockListResponse> getOccupiedBlocks(
             @AuthenticationPrincipal AuthUser authUser,
             @PathVariable Long walkId
@@ -59,6 +63,7 @@ public class WalkController {
     }
 
     @PostMapping("/{walkId}/diaries")
+    @Override
     public ApiResponse<WalkDiariesCreateResponse> writeWalkDiary(
             @AuthenticationPrincipal AuthUser authUser,
             @PathVariable Long walkId,

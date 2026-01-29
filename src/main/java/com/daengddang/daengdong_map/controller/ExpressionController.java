@@ -2,6 +2,7 @@ package com.daengddang.daengdong_map.controller;
 
 import com.daengddang.daengdong_map.common.ApiResponse;
 import com.daengddang.daengdong_map.common.SuccessCode;
+import com.daengddang.daengdong_map.controller.api.ExpressionApi;
 import com.daengddang.daengdong_map.dto.request.expression.ExpressionAnalyzeRequest;
 import com.daengddang.daengdong_map.dto.response.expression.ExpressionAnalyzeResponse;
 import com.daengddang.daengdong_map.security.AuthUser;
@@ -20,11 +21,12 @@ import org.springframework.web.bind.annotation.RestController;
 @Slf4j
 @RequestMapping("/api/v3/walks/{walkId}/expressions")
 @RequiredArgsConstructor
-public class ExpressionController {
+public class ExpressionController implements ExpressionApi {
 
     private final ExpressionAnalyzeService expressionAnalyzeService;
 
     @PostMapping("/analysis")
+    @Override
     public ApiResponse<ExpressionAnalyzeResponse> analyze(
             @AuthenticationPrincipal AuthUser authUser,
             @PathVariable Long walkId,
