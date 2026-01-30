@@ -1,9 +1,9 @@
 ---
 name: Maintence Template
 about: 코드 리팩토링, 코드 수정에 대한 내용을 작성해주세요
-title: "[MAINTENANCE]"
+title: "[Maintence]"
 labels: ''
-assignees: ''
+assignees: kaa08
 
 ---
 
