@@ -16,6 +16,8 @@ public enum SuccessCode {
     USER_INFO_UPDATED("사용자 정보 수정에 성공했습니다."),
     USER_INFO_RETRIEVED("사용자 정보 조회에 성공했습니다."),
     USER_DELETED("회원 탈퇴가 완료되었습니다."),
+    USER_TERM_AGREEMENT_RETRIEVED("약관 동의 상태 조회에 성공했습니다."),
+    USER_TERM_AGREEMENT_UPDATED("약관 동의 상태가 변경되었습니다."),
 
     DOG_REGISTERED("강아지 정보 등록에 성공했습니다."),
     DOG_INFO_RETRIEVED("강아지 정보 조회에 성공했습니다."),
@@ -27,6 +29,7 @@ public enum SuccessCode {
 
     WALK_STARTED("산책이 시작되었습니다."),
     WALK_ENDED("산책이 정상적으로 종료되었습니다."),
+    WALK_ENDED_ABNORMAL("비정상적인 접근"),
     OCCUPIED_BLOCKS_RETRIEVED("점유 블록 조회에 성공했습니다."),
     NEARBY_BLOCKS_RETRIEVED("주변 블록 조회에 성공했습니다."),
 

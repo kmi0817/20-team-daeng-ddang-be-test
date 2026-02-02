@@ -48,7 +48,7 @@ public class DevAuthController {
 
         return ApiResponse.success(
                 SuccessCode.LOGIN_SUCCESS,
-                AuthTokenResponse.from(tokenPair.getAccessToken(), false, user.getId())
+                AuthTokenResponse.from(tokenPair.getAccessToken(), false, user)
         );
     }
 
@@ -91,7 +91,7 @@ public class DevAuthController {
 
         return ApiResponse.success(
                 SuccessCode.LOGIN_SUCCESS,
-                AuthTokenResponse.from(tokenPair.getAccessToken(), false, user.getId())
+                AuthTokenResponse.from(tokenPair.getAccessToken(), false, user)
         );
     }
 

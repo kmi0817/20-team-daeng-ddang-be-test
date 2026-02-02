@@ -16,6 +16,7 @@ public class DogResponse {
     private final Float weight;
     private final String gender;
     private final boolean isNeutered;
+    private final boolean isBirthUnknown;
     private final String profileImageUrl;
 
     @Builder
@@ -26,6 +27,7 @@ public class DogResponse {
                         Float weight,
                         String gender,
                         boolean isNeutered,
+                        boolean isBirthUnknown,
                         String profileImageUrl) {
         this.dogId = dogId;
         this.name = name;
@@ -34,6 +36,7 @@ public class DogResponse {
         this.weight = weight;
         this.gender = gender;
         this.isNeutered = isNeutered;
+        this.isBirthUnknown = isBirthUnknown;
         this.profileImageUrl = profileImageUrl;
     }
 
@@ -47,6 +50,7 @@ public class DogResponse {
                 .weight(dog.getWeight())
                 .gender(genderDisplayName)
                 .isNeutered(dog.isNeutered())
+                .isBirthUnknown(dog.isBirthUnknown())
                 .profileImageUrl(dog.getProfileImageUrl())
                 .build();
     }

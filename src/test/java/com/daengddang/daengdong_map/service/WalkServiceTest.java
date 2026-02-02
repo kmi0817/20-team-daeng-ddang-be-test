@@ -174,6 +174,28 @@ class WalkServiceTest {
     }
 
     @Test
+    void endWalk_setsDistanceZeroWhenSpeedIsAbnormal() {
+        User user = user(1L);
+        Dog dog = dog(user, 10L);
+        Walk walk = walk(dog, 100L, WalkStatus.IN_PROGRESS);
+
+        when(userRepository.findById(1L)).thenReturn(Optional.of(user));
+        when(dogRepository.findByUser(user)).thenReturn(Optional.of(dog));
+        when(walkRepository.findByIdAndDog(100L, dog)).thenReturn(Optional.of(walk));
+        when(blockOwnershipRepository.findAllByDog(dog)).thenReturn(List.of());
+
+        WalkEndRequest request = endRequest(37.0, 127.0, 1.0, 60, WalkStatus.FINISHED);
+
+        WalkEndResponse response = walkService.endWalk(1L, 100L, request);
+
+        assertThat(walk.getDistance()).isEqualTo(0.0);
+        assertThat(walk.getDuration()).isEqualTo(60);
+        assertThat(response.getTotalDistanceKm()).isEqualTo(0.0);
+        assertThat(response.getDurationSeconds()).isEqualTo(60);
+        assertThat(response.getStatus()).isEqualTo(WalkStatus.FINISHED);
+    }
+
+    @Test
     void getOccupiedBlocks_mapsBlockOwnerships() {
         User user = user(1L);
         Dog dog = dog(user, 10L);

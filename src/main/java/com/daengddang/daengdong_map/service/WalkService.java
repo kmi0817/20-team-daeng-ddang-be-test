@@ -17,6 +17,7 @@ import com.daengddang.daengdong_map.dto.response.walk.WalkEndResponse;
 import com.daengddang.daengdong_map.dto.response.walk.WalkStartResponse;
 import com.daengddang.daengdong_map.repository.BlockOwnershipRepository;
 import com.daengddang.daengdong_map.util.AccessValidator;
+import com.daengddang.daengdong_map.util.WalkMetricsValidator;
 import com.daengddang.daengdong_map.repository.WalkPointRepository;
 import com.daengddang.daengdong_map.repository.WalkRepository;
 import java.time.LocalDateTime;
@@ -85,9 +86,13 @@ public class WalkService {
         }
 
         LocalDateTime now = LocalDateTime.now();
-        double distanceMeters = dto.getTotalDistanceKm() * KM_TO_METER;
+        double requestedDistanceKm = dto.getTotalDistanceKm();
+        int durationSeconds = dto.getDurationSeconds();
+        boolean abnormalSpeed = WalkMetricsValidator.isAbnormalSpeed(requestedDistanceKm, durationSeconds);
+        double storedDistanceMeters = abnormalSpeed ? 0.0 : requestedDistanceKm * KM_TO_METER;
+        double responseDistanceKm = abnormalSpeed ? 0.0 : requestedDistanceKm;
 
-        walk.finish(now, distanceMeters, dto.getDurationSeconds());
+        walk.finish(now, storedDistanceMeters, durationSeconds);
 
         WalkPoint endPoint = WalkEndRequest.of(dto, walk, now);
         walkPointRepository.save(endPoint);
@@ -98,8 +103,8 @@ public class WalkService {
                 walk.getId(),
                 walk.getStartedAt(),
                 walk.getEndedAt(),
-                dto.getTotalDistanceKm(),
-                dto.getDurationSeconds(),
+                responseDistanceKm,
+                durationSeconds,
                 occupiedBlockCount,
                 walk.getStatus()
         );
@@ -109,7 +114,9 @@ public class WalkService {
     public OccupiedBlockListResponse getOccupiedBlocks(Long userId, Long walkId) {
         Walk walk = accessValidator.getOwnedWalkOrThrow(userId, walkId);
 
-        List<OccupiedBlockResponse> blocks = blockOwnershipRepository.findAllByDog(walk.getDog()).stream()
+        List<OccupiedBlockResponse> blocks = blockOwnershipRepository
+                .findAllByDogWithBlockAndDog(walk.getDog())
+                .stream()
                 .map(this::toOccupiedBlock)
                 .toList();
 

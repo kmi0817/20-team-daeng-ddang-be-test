@@ -3,6 +3,7 @@ package com.daengddang.daengdong_map.dto.request.diaries;
 import com.daengddang.daengdong_map.domain.diary.WalkDiary;
 import com.daengddang.daengdong_map.domain.user.User;
 import com.daengddang.daengdong_map.domain.walk.Walk;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -10,6 +11,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class WalkDiariesCreateRequest {
 
+    @Size(max = 500)
     private String memo;
 
     private String mapImageUrl;

@@ -30,12 +30,22 @@ public class MissionJudgeMapper {
         );
     }
 
-    public MissionJudgeResponse toPublicResponse(FastApiMissionJudgeResponse response) {
+    public MissionJudgeResponse toPublicResponse(FastApiMissionJudgeResponse response, List<Mission> missions) {
+        Map<Long, String> titleByMissionId = missions.stream()
+                .collect(Collectors.toMap(Mission::getId, Mission::getTitle));
+
         List<MissionJudgeResponse.MissionResult> results = response.getMissions().stream()
-                .map(result -> MissionJudgeResponse.MissionResult.from(
-                        result.getMissionId(),
-                        result.getSuccess()
-                ))
+                .map(result -> {
+                    String missionTitle = titleByMissionId.get(result.getMissionId());
+                    if (missionTitle == null) {
+                        throw new BaseException(ErrorCode.RESOURCE_NOT_FOUND);
+                    }
+                    return MissionJudgeResponse.MissionResult.from(
+                            result.getMissionId(),
+                            missionTitle,
+                            result.getSuccess()
+                    );
+                })
                 .toList();
 
         return MissionJudgeResponse.from(

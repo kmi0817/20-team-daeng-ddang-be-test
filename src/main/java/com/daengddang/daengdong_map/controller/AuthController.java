@@ -37,9 +37,6 @@ public class AuthController implements AuthApi {
     private final JwtTokenProvider jwtTokenProvider;
     private final KakaoOAuthProperties kakaoOAuthProperties;
 
-    /**
-     * 카카오 OAuth 로그인
-     */
     @PostMapping("/login")
     @Override
     public ApiResponse<AuthTokenResponse> kakaoLogin(
@@ -60,23 +57,17 @@ public class AuthController implements AuthApi {
                 AuthTokenResponse.from(
                         tokenPair.getAccessToken(),
                         loginResult.isNewUser(),
-                        user.getId()
+                        user
                 )
         );
     }
 
-    /**
-     * 카카오 로그인 페이지로 리다이렉트
-     */
     @GetMapping
     @Override
     public void redirectToKakao(HttpServletResponse response) throws IOException {
         response.sendRedirect(buildAuthorizeUrl());
     }
 
-    /**
-     * 카카오 로그인 URL 반환 (프론트에서 사용)
-     */
     @GetMapping("/authorize-url")
     @Override
     public ApiResponse<String> getAuthorizeUrl() {
@@ -86,9 +77,6 @@ public class AuthController implements AuthApi {
         );
     }
 
-    /**
-     * Access Token 재발급
-     */
     @PostMapping("/token")
     @Override
     public ApiResponse<AuthTokenResponse> refreshToken(
@@ -102,17 +90,10 @@ public class AuthController implements AuthApi {
 
         return ApiResponse.success(
                 SuccessCode.TOKEN_REFRESHED,
-                AuthTokenResponse.from(
-                        newAccessToken,
-                        false,
-                        null   // userId는 프론트에서 굳이 필요 없으면 null
-                )
+                AuthTokenResponse.fromAccessToken(newAccessToken)
         );
     }
 
-    /**
-     * 로그아웃
-     */
     @PostMapping("/logout")
     @Override
     public ApiResponse<Void> logout(
@@ -145,8 +126,6 @@ public class AuthController implements AuthApi {
 
         return ApiResponse.success(SuccessCode.AUTHORIZATION_CODE_DELIVERED, data);
     }
-
-    /* ================= Cookie ================= */
 
     private void setRefreshTokenCookie(HttpServletResponse response, String refreshToken) {
         ResponseCookie cookie = ResponseCookie.from("refreshToken", refreshToken)

@@ -12,12 +12,22 @@ public interface BlockOwnershipRepository extends JpaRepository<BlockOwnership, 
 
     List<BlockOwnership> findAllByDog(Dog dog);
 
+    @Query("""
+            select ownership
+            from BlockOwnership ownership
+            join fetch ownership.block block
+            join fetch ownership.dog dog
+            where ownership.dog = :dog
+            """)
+    List<BlockOwnership> findAllByDogWithBlockAndDog(@Param("dog") Dog dog);
+
     List<BlockOwnership> findAllByIdIn(Collection<Long> blockIds);
 
     @Query("""
             select ownership
             from BlockOwnership ownership
             join fetch ownership.block block
+            join fetch ownership.dog dog
             where block.x between :minX and :maxX
               and block.y between :minY and :maxY
             """)

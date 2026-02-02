@@ -13,6 +13,7 @@ import com.daengddang.daengdong_map.dto.response.walk.WalkStartResponse;
 import com.daengddang.daengdong_map.security.AuthUser;
 import com.daengddang.daengdong_map.service.WalkDiaryService;
 import com.daengddang.daengdong_map.service.WalkService;
+import com.daengddang.daengdong_map.util.WalkMetricsValidator;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -49,7 +50,12 @@ public class WalkController implements WalkApi {
             @Valid @RequestBody WalkEndRequest dto
     ) {
         WalkEndResponse response = walkService.endWalk(authUser.getUserId(), walkId, dto);
-        return ApiResponse.success(SuccessCode.WALK_ENDED, response);
+        boolean abnormalSpeed = WalkMetricsValidator.isAbnormalSpeed(
+                dto.getTotalDistanceKm(),
+                dto.getDurationSeconds()
+        );
+        SuccessCode successCode = abnormalSpeed ? SuccessCode.WALK_ENDED_ABNORMAL : SuccessCode.WALK_ENDED;
+        return ApiResponse.success(successCode, response);
     }
 
     @GetMapping("/{walkId}/blocks")

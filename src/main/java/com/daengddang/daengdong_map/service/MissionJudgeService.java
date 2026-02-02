@@ -67,7 +67,7 @@ public class MissionJudgeService {
                 missionJudgeMapper.toFastApiRequest(uploads, missions, walkId);
         FastApiMissionJudgeResponse fastApiResponse =
                 fastApiClient.requestMissionJudge(fastApiRequest);
-        MissionJudgeResponse response = missionJudgeMapper.toPublicResponse(fastApiResponse);
+        MissionJudgeResponse response = missionJudgeMapper.toPublicResponse(fastApiResponse, missions);
         saveMissionRecords(uploads, missions, fastApiResponse, walk, submittedAt);
 
         return response;

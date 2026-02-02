@@ -1,5 +1,6 @@
 package com.daengddang.daengdong_map.dto.response.auth;
 
+import com.daengddang.daengdong_map.domain.user.User;
 import com.daengddang.daengdong_map.dto.response.user.UserLoginResponse;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AccessLevel;
@@ -32,6 +33,26 @@ public class AuthTokenResponse {
                 accessToken,
                 isNewUser,
                 UserLoginResponse.from(userId)
+        );
+    }
+
+    public static AuthTokenResponse fromAccessToken(String accessToken) {
+        return new AuthTokenResponse(
+                accessToken,
+                false,
+                UserLoginResponse.from((Long) null)
+        );
+    }
+
+    public static AuthTokenResponse from(
+            String accessToken,
+            boolean isNewUser,
+            User user
+    ) {
+        return new AuthTokenResponse(
+                accessToken,
+                isNewUser,
+                UserLoginResponse.from(user)
         );
     }
 

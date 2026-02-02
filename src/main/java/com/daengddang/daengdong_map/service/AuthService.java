@@ -18,13 +18,6 @@ public class AuthService {
     private final UserRepository userRepository;
     private final DogRepository dogRepository;
 
-    /**
-     * Kakao OAuth 결과로 User를 확정한다.
-     *
-     * - 신규 유저면 최소 정보만으로 생성
-     * - 기존 유저면 상태 복구/확인
-     * - region 등 프로필 정보는 관여하지 않는다
-     */
     @Transactional
     public LoginResult loginOrRegister(KakaoOAuthUser oauthUser) {
 

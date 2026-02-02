@@ -43,7 +43,6 @@ public class WalkWebSocketService {
 
     @Transactional
     public void handleLocationUpdate(Long walkId, LocationUpdatePayload payload, Principal principal) {
-        // TODO: walk 상태/권한 검증 + 점유/탈취 로직
         LocalDateTime timestamp = LocalDateTime.now();
 
         Walk walk = walkRepository.findById(walkId)

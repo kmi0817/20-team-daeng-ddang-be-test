@@ -40,17 +40,20 @@ public class MissionJudgeResponse {
     public static class MissionResult {
 
         private final Long missionId;
+        private final String missionTitle;
         private final Boolean success;
 
         @Builder
-        private MissionResult(Long missionId, Boolean success) {
+        private MissionResult(Long missionId, String missionTitle, Boolean success) {
             this.missionId = missionId;
+            this.missionTitle = missionTitle;
             this.success = success;
         }
 
-        public static MissionResult from(Long missionId, Boolean success) {
+        public static MissionResult from(Long missionId, String missionTitle, Boolean success) {
             return MissionResult.builder()
                     .missionId(missionId)
+                    .missionTitle(missionTitle)
                     .success(success)
                     .build();
         }
