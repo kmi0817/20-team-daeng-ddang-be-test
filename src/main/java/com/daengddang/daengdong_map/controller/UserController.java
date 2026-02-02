@@ -4,15 +4,19 @@ import com.daengddang.daengdong_map.common.ApiResponse;
 import com.daengddang.daengdong_map.common.ErrorCode;
 import com.daengddang.daengdong_map.common.SuccessCode;
 import com.daengddang.daengdong_map.common.exception.BaseException;
+import com.daengddang.daengdong_map.controller.api.UserApi;
 import com.daengddang.daengdong_map.dto.request.dog.DogRegisterRequest;
 import com.daengddang.daengdong_map.dto.request.dog.DogUpdateRequest;
 import com.daengddang.daengdong_map.dto.request.user.UserRegisterRequest;
+import com.daengddang.daengdong_map.dto.request.user.UserTermAgreeDto;
 import com.daengddang.daengdong_map.dto.request.user.UserUpdateRequest;
 import com.daengddang.daengdong_map.dto.response.dog.DogRegisterResponse;
 import com.daengddang.daengdong_map.dto.response.dog.DogResponse;
 import com.daengddang.daengdong_map.dto.response.user.RegionListResponse;
 import com.daengddang.daengdong_map.dto.response.user.UserInfoResponse;
 import com.daengddang.daengdong_map.dto.response.user.UserRegisterResponse;
+import com.daengddang.daengdong_map.dto.response.user.UserSummaryResponse;
+import com.daengddang.daengdong_map.dto.response.user.UserTermAgreeResponse;
 import com.daengddang.daengdong_map.security.AuthUser;
 import com.daengddang.daengdong_map.service.DogService;
 import com.daengddang.daengdong_map.service.RegionService;
@@ -25,41 +29,53 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v3/users")
 @RequiredArgsConstructor
-public class UserController {
+public class UserController implements UserApi {
 
     private final UserService userService;
     private final RegionService regionService;
     private final DogService dogService;
 
     @PostMapping
+    @Override
     public ApiResponse<UserRegisterResponse> registerUserInfo(
             @AuthenticationPrincipal AuthUser authUser,
-            @Valid @RequestBody UserRegisterRequest request
+            @Valid @RequestBody UserRegisterRequest dto
     ) {
         if (authUser == null) {
             throw new BaseException(ErrorCode.UNAUTHORIZED);
         }
         return ApiResponse.success(
                 SuccessCode.USER_INFO_REGISTERED,
-                userService.registerUserInfo(authUser.getUserId(), request)
+                userService.registerUserInfo(authUser.getUserId(), dto)
         );
     }
 
+    @GetMapping
+    @Override
+    public ApiResponse<UserSummaryResponse> getUserSummary(
+            @AuthenticationPrincipal AuthUser authUser
+    ) {
+        UserSummaryResponse response = userService.getMyPageSummary(authUser.getUserId());
+        return ApiResponse.success(SuccessCode.MY_PAGE_SUMMARY_RETRIEVED, response);
+    }
+
     @PatchMapping
+    @Override
     public ApiResponse<UserInfoResponse> updateUserInfo(
             @AuthenticationPrincipal AuthUser authUser,
-            @Valid @RequestBody UserUpdateRequest request
+            @Valid @RequestBody UserUpdateRequest dto
     ) {
         if (authUser == null) {
             throw new BaseException(ErrorCode.UNAUTHORIZED);
         }
         return ApiResponse.success(
                 SuccessCode.USER_INFO_UPDATED,
-                userService.updateUserInfo(authUser.getUserId(), request)
+                userService.updateUserInfo(authUser.getUserId(), dto)
         );
     }
 
     @GetMapping("/regions")
+    @Override
     public ApiResponse<RegionListResponse> getRegions(
             @RequestParam(name = "parentId", required = false) Long parentId
     ) {
@@ -70,6 +86,7 @@ public class UserController {
     }
 
     @GetMapping("/me")
+    @Override
     public ApiResponse<UserInfoResponse> getUserInfo(@AuthenticationPrincipal AuthUser authUser) {
         if (authUser == null) {
             throw new BaseException(ErrorCode.UNAUTHORIZED);
@@ -78,21 +95,65 @@ public class UserController {
         return ApiResponse.success(SuccessCode.USER_INFO_RETRIEVED, userService.getUserInfo(authUser.getUserId()));
     }
 
+    @GetMapping("/terms")
+    @Override
+    public ApiResponse<UserTermAgreeResponse> getUserTermAgreement(
+            @AuthenticationPrincipal AuthUser authUser
+    ) {
+        if (authUser == null) {
+            throw new BaseException(ErrorCode.UNAUTHORIZED);
+        }
+
+        return ApiResponse.success(
+                SuccessCode.USER_TERM_AGREEMENT_RETRIEVED,
+                userService.getUserTermAgreement(authUser.getUserId())
+        );
+    }
+
+    @PatchMapping("/terms")
+    @Override
+    public ApiResponse<UserTermAgreeResponse> updateUserTermAgreement(
+            @AuthenticationPrincipal AuthUser authUser,
+            @Valid @RequestBody UserTermAgreeDto dto
+    ) {
+        if (authUser == null) {
+            throw new BaseException(ErrorCode.UNAUTHORIZED);
+        }
+
+        return ApiResponse.success(
+                SuccessCode.USER_TERM_AGREEMENT_UPDATED,
+                userService.updateUserTermAgreement(authUser.getUserId(), dto)
+        );
+    }
+
+    @DeleteMapping
+    @Override
+    public ApiResponse<Void> withdrawUser(@AuthenticationPrincipal AuthUser authUser) {
+        if (authUser == null) {
+            throw new BaseException(ErrorCode.UNAUTHORIZED);
+        }
+
+        userService.withdrawUser(authUser.getUserId());
+        return ApiResponse.success(SuccessCode.USER_DELETED);
+    }
+
     @PostMapping("/dogs")
+    @Override
     public ApiResponse<DogRegisterResponse> registerDog(
             @AuthenticationPrincipal AuthUser authUser,
-            @Valid @RequestBody DogRegisterRequest request
+            @Valid @RequestBody DogRegisterRequest dto
     ) {
         if (authUser == null) {
             throw new BaseException(ErrorCode.UNAUTHORIZED);
         }
         return ApiResponse.success(
                 SuccessCode.DOG_REGISTERED,
-                dogService.registerDog(authUser.getUserId(), request)
+                dogService.registerDog(authUser.getUserId(), dto)
         );
     }
 
     @GetMapping("/dogs")
+    @Override
     public ApiResponse<DogResponse> getDogInfo(@AuthenticationPrincipal AuthUser authUser) {
         if (authUser == null) {
             throw new BaseException(ErrorCode.UNAUTHORIZED);
@@ -102,9 +163,10 @@ public class UserController {
     }
 
     @PatchMapping("/dogs")
+    @Override
     public ApiResponse<DogResponse> updateDogInfo(
             @AuthenticationPrincipal AuthUser authUser,
-            @Valid @RequestBody DogUpdateRequest request
+            @Valid @RequestBody DogUpdateRequest dto
     ) {
         if (authUser == null) {
             throw new BaseException(ErrorCode.UNAUTHORIZED);
@@ -112,7 +174,7 @@ public class UserController {
 
         return ApiResponse.success(
                 SuccessCode.DOG_INFO_UPDATED,
-                dogService.updateDogInfo(authUser.getUserId(), request)
+                dogService.updateDogInfo(authUser.getUserId(), dto)
         );
     }
 }

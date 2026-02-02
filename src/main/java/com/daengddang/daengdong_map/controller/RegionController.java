@@ -2,6 +2,7 @@ package com.daengddang.daengdong_map.controller;
 
 import com.daengddang.daengdong_map.common.ApiResponse;
 import com.daengddang.daengdong_map.common.SuccessCode;
+import com.daengddang.daengdong_map.controller.api.RegionApi;
 import com.daengddang.daengdong_map.dto.response.region.RegionResponse;
 import com.daengddang.daengdong_map.service.RegionService;
 import lombok.RequiredArgsConstructor;
@@ -13,11 +14,12 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v3/regions")
 @RequiredArgsConstructor
-public class RegionController {
+public class RegionController implements RegionApi {
 
     private final RegionService regionService;
 
     @GetMapping
+    @Override
     public ApiResponse<RegionResponse> getRegion(@RequestParam Long regionId) {
         return ApiResponse.success(SuccessCode.REGION_RETRIEVED, regionService.getRegion(regionId));
     }

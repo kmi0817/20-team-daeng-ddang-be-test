@@ -10,10 +10,14 @@ public enum SuccessCode {
     TOKEN_REFRESHED("토큰이 갱신되었습니다."),
     LOGOUT_SUCCESS("로그아웃 되었습니다."),
     AUTHORIZATION_CODE_DELIVERED("인가 코드가 전달되었습니다."),
+    DEV_USERS_SEEDED("개발용 더미 유저 생성에 성공했습니다."),
 
     USER_INFO_REGISTERED("사용자 정보 등록에 성공했습니다."),
     USER_INFO_UPDATED("사용자 정보 수정에 성공했습니다."),
     USER_INFO_RETRIEVED("사용자 정보 조회에 성공했습니다."),
+    USER_DELETED("회원 탈퇴가 완료되었습니다."),
+    USER_TERM_AGREEMENT_RETRIEVED("약관 동의 상태 조회에 성공했습니다."),
+    USER_TERM_AGREEMENT_UPDATED("약관 동의 상태가 변경되었습니다."),
 
     DOG_REGISTERED("강아지 정보 등록에 성공했습니다."),
     DOG_INFO_RETRIEVED("강아지 정보 조회에 성공했습니다."),
@@ -25,6 +29,7 @@ public enum SuccessCode {
 
     WALK_STARTED("산책이 시작되었습니다."),
     WALK_ENDED("산책이 정상적으로 종료되었습니다."),
+    WALK_ENDED_ABNORMAL("비정상적인 접근"),
     OCCUPIED_BLOCKS_RETRIEVED("점유 블록 조회에 성공했습니다."),
     NEARBY_BLOCKS_RETRIEVED("주변 블록 조회에 성공했습니다."),
 
@@ -43,8 +48,8 @@ public enum SuccessCode {
 
     EMOTION_ANALYSIS_RESULT_CREATED("표정 분석 결과 생성에 성공했습니다."),
     EMOTION_ANALYSIS_RESULT_RETRIEVED("표정 분석 결과 조회에 성공했습니다."),
-    WALK_NOTE_RETRIEVED("산책일지 조회에 성공했습니다."),
-    WALK_NOTE_CREATED("산책일지가 작성되었습니다."),
+    WALK_DIARY_RETRIEVED("산책일지 조회에 성공했습니다."),
+    WALK_DIARY_CREATED("산책일지가 작성되었습니다."),
     WALK_IMAGE_LIST_RETRIEVED("산책 이미지 목록 조회에 성공했습니다."),
 
     CALENDAR_RECORD_LIST_RETRIEVED("캘린더 기록 조회에 성공했습니다."),
@@ -58,6 +63,9 @@ public enum SuccessCode {
     MISSION_RECORD_SAVED("돌발미션 기록이 저장되었습니다."),
     MISSION_ANALYSIS_COMPLETED("돌발미션 분석이 완료되었습니다."),
     MISSION_ANALYSIS_RESULT_RETRIEVED("돌발미션 분석 결과 조회에 성공했습니다."),
+    MISSION_LIST_RETRIEVED("미션 목록 조회에 성공했습니다."),
+    MISSION_UPLOAD_SAVED("돌발미션 업로드 정보가 저장되었습니다."),
+    MISSION_UPLOAD_LIST_RETRIEVED("돌발미션 업로드 목록 조회에 성공했습니다."),
 
     HEALTH_CHECK_OK("success");
 

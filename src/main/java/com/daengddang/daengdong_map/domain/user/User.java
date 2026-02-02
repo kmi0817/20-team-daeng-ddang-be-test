@@ -9,10 +9,14 @@ import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 
 @Getter
 @Entity
 @Table(name = "users")
+@SQLDelete(sql = "UPDATE users SET status = 'DELETED', deleted_at = now() WHERE user_id = ?")
+@SQLRestriction("status = 'ACTIVE'")
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @SequenceGenerator(
         name = "user_seq_generator",
@@ -29,6 +33,9 @@ public class User extends BaseTimeEntity {
     @Column(name = "kakao_user_id", nullable = false, unique = true)
     private Long kakaoUserId;
 
+    @Column(name = "kakao_email", nullable = true, length = 255)
+    private String kakaoEmail;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 10)
     private UserStatus status = UserStatus.ACTIVE;
@@ -39,17 +46,24 @@ public class User extends BaseTimeEntity {
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
+    @Column(name = "is_agreed", nullable = true)
+    private Boolean isAgreed = false;
+
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "region_id", nullable = true)
     private Region region;
 
     @Builder
     private User(Long kakaoUserId,
+                 String kakaoEmail,
                  UserStatus status,
+                 Boolean isAgreed,
                  LocalDateTime lastLoginAt,
                  Region region) {
         this.kakaoUserId = kakaoUserId;
+        this.kakaoEmail = kakaoEmail;
         this.status = status;
+        this.isAgreed = isAgreed != null ? isAgreed : false;
         this.lastLoginAt = lastLoginAt;
         this.region = region;
     }
@@ -62,8 +76,21 @@ public class User extends BaseTimeEntity {
         this.lastLoginAt = loginAt;
     }
 
+    public void updateKakaoEmail(String kakaoEmail) {
+        this.kakaoEmail = kakaoEmail;
+    }
+
+    public void updateIsAgreed(Boolean isAgreed) {
+        this.isAgreed = isAgreed;
+    }
+
     public void markDeleted(LocalDateTime deletedAt) {
         this.status = UserStatus.DELETED;
         this.deletedAt = deletedAt;
+    }
+
+    public void restore() {
+        this.status = UserStatus.ACTIVE;
+        this.deletedAt = null;
     }
 }

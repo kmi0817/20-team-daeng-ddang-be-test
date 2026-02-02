@@ -1,4 +1,6 @@
 HELP.md
+logs
+k6
 .env
 websocket.csv
 api.csv

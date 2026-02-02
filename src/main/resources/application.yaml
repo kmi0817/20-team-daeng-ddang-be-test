@@ -10,7 +10,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     show-sql: true
     open-in-view: false
     properties:
@@ -23,7 +23,14 @@ spring:
       max-file-size: 10MB
       max-request-size: 10MB
 
-
+springdoc:
+  api-docs:
+    path: /api/v3/api-docs
+    enabled: false
+  swagger-ui:
+    path: /api/swagger-ui.html
+    enabled: false
+    try-it-out-enabled: false
 
 jwt:
   secret: ${JWT_SECRET}
@@ -37,6 +44,7 @@ oauth:
     client-id: ${KAKAO_CLIENT_ID}
     client-secret: ${KAKAO_CLIENT_SECRET}
     redirect-uri: ${KAKAO_REDIRECT_URI}
+    scope: ${KAKAO_SCOPE:account_email}
     authorize-uri: https://kauth.kakao.com/oauth/authorize
     token-uri: https://kauth.kakao.com/oauth/token
     user-info-uri: https://kapi.kakao.com/v2/user/me
@@ -62,3 +70,8 @@ aws:
   s3:
     bucket: ${AWS_REGION}
   region: ${AWS_S3_BUCKET}
+
+ai:
+  fastapi:
+    mission-judge-uri: ${FASTAPI_MISSION_JUDGE_URI}
+    expression-analyze-uri: ${FASTAPI_FACE_ANALYZE_URI}

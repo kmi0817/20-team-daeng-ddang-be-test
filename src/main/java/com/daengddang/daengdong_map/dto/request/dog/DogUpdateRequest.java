@@ -1,5 +1,7 @@
 package com.daengddang.daengdong_map.dto.request.dog;
 
+import com.daengddang.daengdong_map.domain.breed.Breed;
+import com.daengddang.daengdong_map.domain.dog.Dog;
 import com.daengddang.daengdong_map.domain.dog.DogGender;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
@@ -25,6 +27,7 @@ public class DogUpdateRequest {
 
     private DogGender gender;
     private Boolean isNeutered;
+    private Boolean isBirthUnknown;
 
     @NotNull
     @Digits(integer = 5, fraction = 1)
@@ -32,4 +35,23 @@ public class DogUpdateRequest {
 
     @Size(max = 255)
     private String profileImageUrl;
+
+    public static Dog of(DogUpdateRequest dto, Dog dog, Breed breed) {
+        String name = dto.getName() == null ? null : dto.getName().trim();
+        boolean isNeutered = Boolean.TRUE.equals(dto.getIsNeutered());
+        boolean isBirthUnknown = Boolean.TRUE.equals(dto.getIsBirthUnknown());
+
+        dog.updateProfile(
+                name,
+                dto.getBirthDate(),
+                dto.getGender(),
+                isNeutered,
+                dto.getWeight().floatValue(),
+                dto.getProfileImageUrl(),
+                isBirthUnknown,
+                breed
+        );
+
+        return dog;
+    }
 }

@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!-- Spring Boot 4 COLOR converter -->
+    <conversionRule conversionWord="clr"
+                    class="org.springframework.boot.logging.logback.ColorConverter"/>
+
+    <!-- ================================================== -->
+    <!-- fallback 콘솔 (초기 로그용, 반드시 필요) -->
+    <!-- ================================================== -->
+    <appender name="DEFAULT_CONSOLE"
+              class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy/MM/dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="DEFAULT_CONSOLE"/>
+    </root>
+
+    <!-- ================================================== -->
+    <!-- local / dev -->
+    <!-- ================================================== -->
+    <springProfile name="local,dev">
+
+        <property name="LOG_PATH" value="./logs"/>
+        <property name="APP_NAME" value="daengdong"/>
+
+        <!-- 컬러 콘솔 -->
+        <appender name="COLOR_CONSOLE"
+                  class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%clr(%d{HH:mm:ss.SSS}){faint} %clr([%thread]){faint} %clr(%-5level) %clr(%logger{36}){cyan} - %msg%n</pattern>
+            </encoder>
+        </appender>
+
+        <!-- WebSocket 전용 콘솔 -->
+        <appender name="WS_CONSOLE"
+                  class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%clr(%d{HH:mm:ss.SSS}){faint} %clr([WS]){magenta} %clr(%-5level) %clr(%logger{36}){yellow} - %msg%n</pattern>
+            </encoder>
+        </appender>
+
+        <!-- 파일 로그 -->
+        <appender name="FILE"
+                  class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>${LOG_PATH}/${APP_NAME}.log</file>
+            <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+                <fileNamePattern>${LOG_PATH}/${APP_NAME}.%d{yyyy-MM-dd}.log</fileNamePattern>
+                <maxHistory>14</maxHistory>
+            </rollingPolicy>
+            <encoder>
+                <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n</pattern>
+            </encoder>
+        </appender>
+
+        <!-- WebSocket 로그 분리 -->
+        <logger name="org.springframework.web.socket" level="INFO" additivity="false">
+            <appender-ref ref="WS_CONSOLE"/>
+        </logger>
+
+        <logger name="org.springframework.messaging" level="INFO" additivity="false">
+            <appender-ref ref="WS_CONSOLE"/>
+        </logger>
+
+        <logger name="com.daengddang.daengdong_map.websocket" level="DEBUG" additivity="false">
+            <appender-ref ref="WS_CONSOLE"/>
+        </logger>
+
+        <root level="DEBUG">
+            <appender-ref ref="COLOR_CONSOLE"/>
+            <appender-ref ref="FILE"/>
+        </root>
+
+    </springProfile>
+
+    <!-- ================================================== -->
+    <!-- prod -->
+    <!-- ================================================== -->
+    <springProfile name="prod">
+
+        <property name="LOG_PATH" value="/var/log/daengdong"/>
+        <property name="APP_NAME" value="daengdong"/>
+
+        <!-- prod 콘솔 (무색) -->
+        <appender name="CONSOLE"
+                  class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n</pattern>
+            </encoder>
+        </appender>
+
+        <!-- 전체 로그 파일 -->
+        <appender name="FILE"
+                  class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>${LOG_PATH}/${APP_NAME}.log</file>
+            <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+                <fileNamePattern>${LOG_PATH}/${APP_NAME}.%d{yyyy-MM-dd}.log</fileNamePattern>
+                <maxHistory>30</maxHistory>
+                <totalSizeCap>5GB</totalSizeCap>
+            </rollingPolicy>
+            <encoder>
+                <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n</pattern>
+            </encoder>
+        </appender>
+
+        <!-- ERROR 전용 -->
+        <appender name="ERROR_FILE"
+                  class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>${LOG_PATH}/${APP_NAME}-error.log</file>
+            <filter class="ch.qos.logback.classic.filter.LevelFilter">
+                <level>ERROR</level>
+                <onMatch>ACCEPT</onMatch>
+                <onMismatch>DENY</onMismatch>
+            </filter>
+            <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+                <fileNamePattern>${LOG_PATH}/${APP_NAME}-error.%d{yyyy-MM-dd}.log</fileNamePattern>
+                <maxHistory>60</maxHistory>
+            </rollingPolicy>
+            <encoder>
+                <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n</pattern>
+            </encoder>
+        </appender>
+
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+            <appender-ref ref="FILE"/>
+            <appender-ref ref="ERROR_FILE"/>
+        </root>
+
+    </springProfile>
+
+</configuration>

@@ -4,6 +4,7 @@ import com.daengddang.daengdong_map.common.ApiResponse;
 import com.daengddang.daengdong_map.common.ErrorCode;
 import com.daengddang.daengdong_map.common.SuccessCode;
 import com.daengddang.daengdong_map.common.exception.BaseException;
+import com.daengddang.daengdong_map.controller.api.AuthApi;
 import com.daengddang.daengdong_map.domain.user.User;
 import com.daengddang.daengdong_map.dto.request.auth.KakaoLoginRequest;
 import com.daengddang.daengdong_map.dto.response.auth.AuthTokenResponse;
@@ -14,20 +15,21 @@ import com.daengddang.daengdong_map.security.oauth.kakao.KakaoOAuthProperties;
 import com.daengddang.daengdong_map.service.AuthService;
 import com.daengddang.daengdong_map.service.AuthTokenService;
 import com.daengddang.daengdong_map.service.KakaoOAuthService;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.util.UriComponentsBuilder;
 
 @RestController
 @RequestMapping("/api/v3/auth")
 @RequiredArgsConstructor
-public class AuthController {
+public class AuthController implements AuthApi {
 
     private final AuthService authService;
     private final AuthTokenService authTokenService;
@@ -35,16 +37,14 @@ public class AuthController {
     private final JwtTokenProvider jwtTokenProvider;
     private final KakaoOAuthProperties kakaoOAuthProperties;
 
-    /**
-     * 카카오 OAuth 로그인
-     */
     @PostMapping("/login")
+    @Override
     public ApiResponse<AuthTokenResponse> kakaoLogin(
-            @RequestBody KakaoLoginRequest request,
+            @RequestBody KakaoLoginRequest dto,
             HttpServletResponse response
     ) {
         KakaoOAuthUser oauthUser =
-                kakaoOAuthService.authenticate(request.getCode());
+                kakaoOAuthService.authenticate(dto.getCode());
 
         AuthService.LoginResult loginResult = authService.loginOrRegister(oauthUser);
         User user = loginResult.user();
@@ -54,26 +54,22 @@ public class AuthController {
 
         return ApiResponse.success(
                 SuccessCode.LOGIN_SUCCESS,
-                AuthTokenResponse.of(
+                AuthTokenResponse.from(
                         tokenPair.getAccessToken(),
                         loginResult.isNewUser(),
-                        user.getId()
+                        user
                 )
         );
     }
 
-    /**
-     * 카카오 로그인 페이지로 리다이렉트
-     */
     @GetMapping
+    @Override
     public void redirectToKakao(HttpServletResponse response) throws IOException {
         response.sendRedirect(buildAuthorizeUrl());
     }
 
-    /**
-     * 카카오 로그인 URL 반환 (프론트에서 사용)
-     */
     @GetMapping("/authorize-url")
+    @Override
     public ApiResponse<String> getAuthorizeUrl() {
         return ApiResponse.success(
                 SuccessCode.KAKAO_LOGIN_URL_CREATED,
@@ -81,10 +77,8 @@ public class AuthController {
         );
     }
 
-    /**
-     * Access Token 재발급
-     */
     @PostMapping("/token")
+    @Override
     public ApiResponse<AuthTokenResponse> refreshToken(
             @CookieValue(name = "refreshToken", required = false) String refreshToken
     ) {
@@ -96,18 +90,12 @@ public class AuthController {
 
         return ApiResponse.success(
                 SuccessCode.TOKEN_REFRESHED,
-                AuthTokenResponse.of(
-                        newAccessToken,
-                        false,
-                        null   // userId는 프론트에서 굳이 필요 없으면 null
-                )
+                AuthTokenResponse.fromAccessToken(newAccessToken)
         );
     }
 
-    /**
-     * 로그아웃
-     */
     @PostMapping("/logout")
+    @Override
     public ApiResponse<Void> logout(
             @RequestHeader("Authorization") String authorizationHeader,
             HttpServletResponse response
@@ -121,6 +109,7 @@ public class AuthController {
     }
 
     @GetMapping("/callback")
+    @Override
     public ApiResponse<Map<String, String>> kakaoCallback(
             @RequestParam(name = "code", required = false) String code,
             @RequestParam(name = "state", required = false) String state
@@ -138,22 +127,26 @@ public class AuthController {
         return ApiResponse.success(SuccessCode.AUTHORIZATION_CODE_DELIVERED, data);
     }
 
-    /* ================= Cookie ================= */
-
     private void setRefreshTokenCookie(HttpServletResponse response, String refreshToken) {
-        Cookie cookie = new Cookie("refreshToken", refreshToken);
-        cookie.setHttpOnly(true);
-        cookie.setSecure(false); // TODO: prod에서는 true
-        cookie.setPath("/");
-        cookie.setMaxAge(60 * 60 * 24 * 14);
-        response.addCookie(cookie);
+        ResponseCookie cookie = ResponseCookie.from("refreshToken", refreshToken)
+                .httpOnly(true)
+                .secure(true)
+                .path("/")
+                .maxAge(60 * 60 * 24 * 14)
+                .sameSite("Lax")
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 
     private void clearRefreshTokenCookie(HttpServletResponse response) {
-        Cookie cookie = new Cookie("refreshToken", null);
-        cookie.setPath("/");
-        cookie.setMaxAge(0);
-        response.addCookie(cookie);
+        ResponseCookie cookie = ResponseCookie.from("refreshToken", "")
+                .httpOnly(true)
+                .secure(true)
+                .path("/")
+                .maxAge(0)
+                .sameSite("Lax")
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 
     private Long extractUserId(String authorizationHeader) {
@@ -176,12 +169,16 @@ public class AuthController {
             throw new BaseException(ErrorCode.INTERNAL_SERVER_ERROR);
         }
 
-        return UriComponentsBuilder
+        UriComponentsBuilder builder = UriComponentsBuilder
                 .fromUriString(kakaoOAuthProperties.getAuthorizeUri())
                 .queryParam("client_id", kakaoOAuthProperties.getClientId())
                 .queryParam("redirect_uri", kakaoOAuthProperties.getRedirectUri())
-                .queryParam("response_type", "code")
-                .build()
-                .toUriString();
+                .queryParam("response_type", "code");
+
+        if (kakaoOAuthProperties.getScope() != null && !kakaoOAuthProperties.getScope().isBlank()) {
+            builder.queryParam("scope", kakaoOAuthProperties.getScope());
+        }
+
+        return builder.build().toUriString();
     }
 }

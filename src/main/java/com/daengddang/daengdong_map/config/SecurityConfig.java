@@ -15,6 +15,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.web.cors.CorsConfigurationSource;
 
 @Configuration
 @EnableWebSecurity
@@ -23,6 +24,7 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 public class SecurityConfig {
 
     private final JwtTokenProvider jwtTokenProvider;
+    private final CorsConfigurationSource corsConfigurationSource;
     private final UserRepository userRepository;
 
     @Bean
@@ -32,6 +34,7 @@ public class SecurityConfig {
 
         http
                 .csrf(csrf -> csrf.disable())
+                .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .formLogin(form -> form.disable())
                 .httpBasic(basic -> basic.disable())
                 .oauth2Login(AbstractHttpConfigurer::disable)
@@ -48,12 +51,13 @@ public class SecurityConfig {
                                 "/",
                                 "/api/v3/health",
                                 "/error",
+                                "/ws/**",
                                 "/api/v3/auth",
                                 "/api/v3/auth/",
                                 "/api/v1/auth/**",
                                 "/api/v3/auth/**",
-                                "/swagger-ui/**",
-                                "/v3/api-docs/**"
+                                "/api/swagger-ui/**",
+                                "/api/v3/api-docs/**"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
