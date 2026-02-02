@@ -8,10 +8,12 @@ import com.daengddang.daengdong_map.domain.region.RegionStatus;
 import com.daengddang.daengdong_map.domain.user.User;
 import com.daengddang.daengdong_map.domain.walk.WalkStatus;
 import com.daengddang.daengdong_map.dto.request.user.UserRegisterRequest;
+import com.daengddang.daengdong_map.dto.request.user.UserTermAgreeDto;
 import com.daengddang.daengdong_map.dto.request.user.UserUpdateRequest;
 import com.daengddang.daengdong_map.dto.response.user.UserSummaryResponse;
 import com.daengddang.daengdong_map.dto.response.user.UserInfoResponse;
 import com.daengddang.daengdong_map.dto.response.user.UserRegisterResponse;
+import com.daengddang.daengdong_map.dto.response.user.UserTermAgreeResponse;
 import com.daengddang.daengdong_map.repository.DogRepository;
 import com.daengddang.daengdong_map.repository.RefreshTokenRepository;
 import com.daengddang.daengdong_map.repository.RegionRepository;
@@ -55,6 +57,22 @@ public class UserService {
         User user = accessValidator.getUserOrThrow(userId);
 
         return UserInfoResponse.from(user);
+    }
+
+    @Transactional(readOnly = true)
+    public UserTermAgreeResponse getUserTermAgreement(Long userId) {
+        User user = accessValidator.getUserOrThrow(userId);
+        return UserTermAgreeResponse.from(user);
+    }
+
+    @Transactional
+    public UserTermAgreeResponse updateUserTermAgreement(Long userId, UserTermAgreeDto dto) {
+        if (dto == null || dto.getIsAgreed() == null) {
+            throw new BaseException(ErrorCode.INVALID_FORMAT);
+        }
+        User user = accessValidator.getUserOrThrow(userId);
+        user.updateIsAgreed(dto.getIsAgreed());
+        return UserTermAgreeResponse.from(user);
     }
 
     @Transactional
