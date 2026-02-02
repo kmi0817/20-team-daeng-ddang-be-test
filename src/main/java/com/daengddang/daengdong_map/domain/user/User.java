@@ -46,7 +46,7 @@ public class User extends BaseTimeEntity {
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
-    @Column(name = "is_agreed", nullable = true)
+    @Column(name = "is_agreed", nullable = false)
     private Boolean isAgreed = false;
 
     @OneToOne(fetch = FetchType.LAZY)
@@ -63,7 +63,7 @@ public class User extends BaseTimeEntity {
         this.kakaoUserId = kakaoUserId;
         this.kakaoEmail = kakaoEmail;
         this.status = status;
-        this.isAgreed = isAgreed;
+        this.isAgreed = isAgreed != null ? isAgreed : false;
         this.lastLoginAt = lastLoginAt;
         this.region = region;
     }
