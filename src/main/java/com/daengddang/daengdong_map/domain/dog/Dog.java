@@ -54,6 +54,9 @@ public class Dog extends BaseTimeEntity {
     @Column(name = "profile_image_url", length = 255)
     private String profileImageUrl;
 
+    @Column(name = "is_birth_unknown", nullable = false)
+    private boolean isBirthUnknown;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 10)
     private DogStatus status = DogStatus.ACTIVE;
@@ -79,6 +82,7 @@ public class Dog extends BaseTimeEntity {
                 boolean isNeutered,
                 Float weight,
                 String profileImageUrl,
+                boolean isBirthUnknown,
                 DogStatus status,
                 String dogKey,
                 User user,
@@ -89,19 +93,21 @@ public class Dog extends BaseTimeEntity {
         this.isNeutered = isNeutered;
         this.weight = weight;
         this.profileImageUrl = profileImageUrl;
+        this.isBirthUnknown = isBirthUnknown;
         this.status = status == null ? DogStatus.ACTIVE : status;
         this.dogKey = dogKey == null ? UUID.randomUUID().toString() : dogKey;
         this.user = user;
         this.breed = breed;
     }
 
-    public void updateProfile(String name, LocalDate birthDate, DogGender gender, boolean isNeutered, Float weight, String profileImageUrl, Breed breed) {
+    public void updateProfile(String name, LocalDate birthDate, DogGender gender, boolean isNeutered, Float weight, String profileImageUrl, boolean isBirthUnknown, Breed breed) {
         this.name = name;
         this.birthDate = birthDate;
         this.gender = gender;
         this.isNeutered = isNeutered;
         this.weight = weight;
         this.profileImageUrl = profileImageUrl;
+        this.isBirthUnknown = isBirthUnknown;
         this.breed = breed;
     }
 

@@ -28,6 +28,7 @@ public class DogRegisterRequest {
 
     private DogGender gender;
     private Boolean isNeutered;
+    private Boolean isBirthUnknown;
 
     @NotNull
     @Digits(integer = 5, fraction = 1)
@@ -39,6 +40,7 @@ public class DogRegisterRequest {
     public static Dog of(DogRegisterRequest dto, User user, Breed breed) {
         String name = dto.getName() == null ? null : dto.getName().trim();
         boolean isNeutered = Boolean.TRUE.equals(dto.getIsNeutered());
+        boolean isBirthUnknown = Boolean.TRUE.equals(dto.getIsBirthUnknown());
         Float weight = dto.getWeight() == null ? null : dto.getWeight().floatValue();
 
         return Dog.builder()
@@ -49,6 +51,7 @@ public class DogRegisterRequest {
                 .isNeutered(isNeutered)
                 .weight(weight)
                 .profileImageUrl(dto.getProfileImageUrl())
+                .isBirthUnknown(isBirthUnknown)
                 .user(user)
                 .build();
     }

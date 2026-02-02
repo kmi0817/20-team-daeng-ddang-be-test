@@ -27,6 +27,7 @@ public class DogUpdateRequest {
 
     private DogGender gender;
     private Boolean isNeutered;
+    private Boolean isBirthUnknown;
 
     @NotNull
     @Digits(integer = 5, fraction = 1)
@@ -38,6 +39,7 @@ public class DogUpdateRequest {
     public static Dog of(DogUpdateRequest dto, Dog dog, Breed breed) {
         String name = dto.getName() == null ? null : dto.getName().trim();
         boolean isNeutered = Boolean.TRUE.equals(dto.getIsNeutered());
+        boolean isBirthUnknown = Boolean.TRUE.equals(dto.getIsBirthUnknown());
 
         dog.updateProfile(
                 name,
@@ -46,6 +48,7 @@ public class DogUpdateRequest {
                 isNeutered,
                 dto.getWeight().floatValue(),
                 dto.getProfileImageUrl(),
+                isBirthUnknown,
                 breed
         );
 
