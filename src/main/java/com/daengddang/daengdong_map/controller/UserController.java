@@ -8,6 +8,7 @@ import com.daengddang.daengdong_map.controller.api.UserApi;
 import com.daengddang.daengdong_map.dto.request.dog.DogRegisterRequest;
 import com.daengddang.daengdong_map.dto.request.dog.DogUpdateRequest;
 import com.daengddang.daengdong_map.dto.request.user.UserRegisterRequest;
+import com.daengddang.daengdong_map.dto.request.user.UserTermAgreeDto;
 import com.daengddang.daengdong_map.dto.request.user.UserUpdateRequest;
 import com.daengddang.daengdong_map.dto.response.dog.DogRegisterResponse;
 import com.daengddang.daengdong_map.dto.response.dog.DogResponse;
@@ -15,6 +16,7 @@ import com.daengddang.daengdong_map.dto.response.user.RegionListResponse;
 import com.daengddang.daengdong_map.dto.response.user.UserInfoResponse;
 import com.daengddang.daengdong_map.dto.response.user.UserRegisterResponse;
 import com.daengddang.daengdong_map.dto.response.user.UserSummaryResponse;
+import com.daengddang.daengdong_map.dto.response.user.UserTermAgreeResponse;
 import com.daengddang.daengdong_map.security.AuthUser;
 import com.daengddang.daengdong_map.service.DogService;
 import com.daengddang.daengdong_map.service.RegionService;
@@ -91,6 +93,37 @@ public class UserController implements UserApi {
         }
 
         return ApiResponse.success(SuccessCode.USER_INFO_RETRIEVED, userService.getUserInfo(authUser.getUserId()));
+    }
+
+    @GetMapping("/terms")
+    @Override
+    public ApiResponse<UserTermAgreeResponse> getUserTermAgreement(
+            @AuthenticationPrincipal AuthUser authUser
+    ) {
+        if (authUser == null) {
+            throw new BaseException(ErrorCode.UNAUTHORIZED);
+        }
+
+        return ApiResponse.success(
+                SuccessCode.USER_TERM_AGREEMENT_RETRIEVED,
+                userService.getUserTermAgreement(authUser.getUserId())
+        );
+    }
+
+    @PatchMapping("/terms")
+    @Override
+    public ApiResponse<UserTermAgreeResponse> updateUserTermAgreement(
+            @AuthenticationPrincipal AuthUser authUser,
+            @Valid @RequestBody UserTermAgreeDto dto
+    ) {
+        if (authUser == null) {
+            throw new BaseException(ErrorCode.UNAUTHORIZED);
+        }
+
+        return ApiResponse.success(
+                SuccessCode.USER_TERM_AGREEMENT_UPDATED,
+                userService.updateUserTermAgreement(authUser.getUserId(), dto)
+        );
     }
 
     @DeleteMapping

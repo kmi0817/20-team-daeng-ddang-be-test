@@ -5,6 +5,7 @@ import com.daengddang.daengdong_map.common.api.ErrorCodes;
 import com.daengddang.daengdong_map.dto.request.dog.DogRegisterRequest;
 import com.daengddang.daengdong_map.dto.request.dog.DogUpdateRequest;
 import com.daengddang.daengdong_map.dto.request.user.UserRegisterRequest;
+import com.daengddang.daengdong_map.dto.request.user.UserTermAgreeDto;
 import com.daengddang.daengdong_map.dto.request.user.UserUpdateRequest;
 import com.daengddang.daengdong_map.dto.response.dog.DogRegisterResponse;
 import com.daengddang.daengdong_map.dto.response.dog.DogResponse;
@@ -12,6 +13,7 @@ import com.daengddang.daengdong_map.dto.response.user.RegionListResponse;
 import com.daengddang.daengdong_map.dto.response.user.UserInfoResponse;
 import com.daengddang.daengdong_map.dto.response.user.UserRegisterResponse;
 import com.daengddang.daengdong_map.dto.response.user.UserSummaryResponse;
+import com.daengddang.daengdong_map.dto.response.user.UserTermAgreeResponse;
 import com.daengddang.daengdong_map.security.AuthUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -80,6 +82,27 @@ public interface UserApi {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "INTERNAL_SERVER_ERROR")
     })
     ApiResponse<UserInfoResponse> getUserInfo(@Parameter(hidden = true) AuthUser authUser);
+
+    @Operation(summary = "Get user terms agreement")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "UNAUTHORIZED"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "INTERNAL_SERVER_ERROR")
+    })
+    ApiResponse<UserTermAgreeResponse> getUserTermAgreement(@Parameter(hidden = true) AuthUser authUser);
+
+    @Operation(summary = "Update user terms agreement")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "INVALID_FORMAT"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "UNAUTHORIZED"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "500", description = "INTERNAL_SERVER_ERROR")
+    })
+    @ErrorCodes({
+            com.daengddang.daengdong_map.common.ErrorCode.INVALID_FORMAT
+    })
+    ApiResponse<UserTermAgreeResponse> updateUserTermAgreement(
+            @Parameter(hidden = true) AuthUser authUser,
+            @RequestBody UserTermAgreeDto dto
+    );
 
     @Operation(summary = "Withdraw user")
     @ApiResponses({
