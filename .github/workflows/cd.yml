@@ -7,7 +7,7 @@ on:
 
 permissions:
   contents: read
-  actions: read # CI 워크플로의 아티팩트 다운로드에 필요
+  actions: read
 
 concurrency:
   group: be-cd-dev-${{ github.event.workflow_run.head_branch }}
