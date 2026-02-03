@@ -8,6 +8,7 @@ import com.daengddang.daengdong_map.dto.response.block.NearbyBlockResponse;
 import com.daengddang.daengdong_map.repository.BlockOwnershipRepository;
 import com.daengddang.daengdong_map.util.BlockIdUtil;
 import com.daengddang.daengdong_map.util.BlockOwnershipMapper;
+import com.daengddang.daengdong_map.util.CoordinateValidator;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -23,7 +24,8 @@ public class BlockService {
 
     @Transactional(readOnly = true)
     public NearbyBlockListResponse getNearbyBlocks(Double lat, Double lng, Integer radiusMeters) {
-        if (!isValidInput(lat, lng, radiusMeters)) {
+        if (!CoordinateValidator.isValidLatLng(lat, lng)
+                || !CoordinateValidator.isValidRadius(radiusMeters)) {
             throw new BaseException(ErrorCode.INVALID_FORMAT);
         }
 
@@ -43,16 +45,6 @@ public class BlockService {
                 .toList();
 
         return NearbyBlockListResponse.from(blocks);
-    }
-
-    private boolean isValidInput(Double lat, Double lng, Integer radiusMeters) {
-        if (lat == null || lng == null || radiusMeters == null) {
-            return false;
-        }
-        if (!Double.isFinite(lat) || !Double.isFinite(lng)) {
-            return false;
-        }
-        return radiusMeters > 0;
     }
 
     private int toRange(int radiusMeters) {

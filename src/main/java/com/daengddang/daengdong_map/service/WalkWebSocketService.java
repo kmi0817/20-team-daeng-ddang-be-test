@@ -18,6 +18,7 @@ import com.daengddang.daengdong_map.repository.BlockOwnershipRepository;
 import com.daengddang.daengdong_map.repository.BlockRepository;
 import com.daengddang.daengdong_map.repository.WalkRepository;
 import com.daengddang.daengdong_map.util.AfterCommitExecutor;
+import com.daengddang.daengdong_map.util.CoordinateValidator;
 import com.daengddang.daengdong_map.util.StayValidator;
 import com.daengddang.daengdong_map.util.WalkPointWriter;
 
@@ -53,7 +54,7 @@ public class WalkWebSocketService {
             return;
         }
 
-        if (!isValidCoordinate(payload.getLat(), payload.getLng())) {
+        if (!CoordinateValidator.isValidLatLng(payload.getLat(), payload.getLng())) {
             sendError(walkId, WebSocketErrorReason.INVALID_LOCATION.getMessage());
             return;
         }
@@ -138,13 +139,5 @@ public class WalkWebSocketService {
             messagingTemplate.convertAndSend("/topic/blocks/" + areaKey, message);
         });
     }
-
-    private boolean isValidCoordinate(double lat, double lng) {
-        if (!Double.isFinite(lat) || !Double.isFinite(lng)) {
-            return false;
-        }
-        return lat >= -90.0 && lat <= 90.0 && lng >= -180.0 && lng <= 180.0;
-    }
-
 
 }
