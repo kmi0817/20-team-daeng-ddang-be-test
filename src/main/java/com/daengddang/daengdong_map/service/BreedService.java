@@ -19,7 +19,7 @@ public class BreedService {
     public BreedListResponse getBreeds(String keyword) {
         List<Breed> breeds;
         if (keyword == null) {
-            breeds = breedRepository.findAll(Sort.by(Sort.Direction.ASC, "name"));
+            breeds = breedRepository.findAll(Sort.by(Sort.Direction.ASC, "id"));
         } else {
             String trimmed = keyword.trim();
             if (trimmed.isEmpty()) {
