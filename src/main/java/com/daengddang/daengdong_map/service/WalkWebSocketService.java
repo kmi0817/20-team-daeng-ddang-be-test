@@ -1,6 +1,6 @@
 package com.daengddang.daengdong_map.service;
 
-import com.daengddang.daengdong_map.common.BlockIdUtil;
+import com.daengddang.daengdong_map.util.BlockIdUtil;
 import com.daengddang.daengdong_map.dto.websocket.common.WebSocketEventType;
 import com.daengddang.daengdong_map.dto.websocket.common.WebSocketMessage;
 import com.daengddang.daengdong_map.dto.websocket.common.WebSocketErrorReason;
@@ -17,6 +17,7 @@ import com.daengddang.daengdong_map.domain.walk.WalkStatus;
 import com.daengddang.daengdong_map.repository.BlockOwnershipRepository;
 import com.daengddang.daengdong_map.repository.BlockRepository;
 import com.daengddang.daengdong_map.repository.WalkRepository;
+import com.daengddang.daengdong_map.util.AfterCommitExecutor;
 import com.daengddang.daengdong_map.util.StayValidator;
 import com.daengddang.daengdong_map.util.WalkPointWriter;
 
@@ -26,8 +27,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 @RequiredArgsConstructor
@@ -40,6 +39,7 @@ public class WalkWebSocketService {
     private final WalkPointWriter walkPointWriter;
     private final StayValidator stayValidator;
     private final BlockSyncService blockSyncService;
+    private final AfterCommitExecutor afterCommitExecutor;
 
     @Transactional
     public void handleLocationUpdate(Long walkId, LocationUpdatePayload payload, Principal principal) {
@@ -121,7 +121,7 @@ public class WalkWebSocketService {
         WebSocketMessage<BlockOccupiedPayload> message =
                 new WebSocketMessage<>(WebSocketEventType.BLOCK_OCCUPIED, payload,
                         WebSocketEventType.BLOCK_OCCUPIED.getMessage());
-        sendAfterCommit(() -> {
+        afterCommitExecutor.sendAfterCommit(() -> {
             messagingTemplate.convertAndSend("/topic/walks/" + walkId, message);
             messagingTemplate.convertAndSend("/topic/blocks/" + areaKey, message);
         });
@@ -133,7 +133,7 @@ public class WalkWebSocketService {
         WebSocketMessage<BlockTakenPayload> message =
                 new WebSocketMessage<>(WebSocketEventType.BLOCK_TAKEN, payload,
                         WebSocketEventType.BLOCK_TAKEN.getMessage());
-        sendAfterCommit(() -> {
+        afterCommitExecutor.sendAfterCommit(() -> {
             messagingTemplate.convertAndSend("/topic/walks/" + walkId, message);
             messagingTemplate.convertAndSend("/topic/blocks/" + areaKey, message);
         });
@@ -146,17 +146,5 @@ public class WalkWebSocketService {
         return lat >= -90.0 && lat <= 90.0 && lng >= -180.0 && lng <= 180.0;
     }
 
-    private void sendAfterCommit(Runnable action) {
-        if (TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    action.run();
-                }
-            });
-            return;
-        }
-        action.run();
-    }
 
 }

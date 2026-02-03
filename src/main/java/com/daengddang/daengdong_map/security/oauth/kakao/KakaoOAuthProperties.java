@@ -13,8 +13,10 @@ public class KakaoOAuthProperties {
     private String clientSecret;
     private String redirectUri;
     private String scope;
+    private String adminKey;
 
     private String authorizeUri;
     private String tokenUri;
     private String userInfoUri;
+    private String unlinkUri;
 }

@@ -1,4 +1,4 @@
-package com.daengddang.daengdong_map.common;
+package com.daengddang.daengdong_map.util;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;

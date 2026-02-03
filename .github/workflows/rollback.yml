@@ -150,7 +150,7 @@ jobs:
             # 2) 타겟 포트의 좀비 프로세스 정리
             PID_TO_KILL=$(lsof -ti :${TARGET_PORT} || true)
             if [ -n "$PID_TO_KILL" ]; then
-              echo "🧹 타겟 포트($TARGET_PORT)의 기존 프로세스 정리..."
+              echo "🧹 타겟 포트($TARGET_PORT)의 기존 프로세스 정리...."
               kill -9 $PID_TO_KILL || true
             fi
 

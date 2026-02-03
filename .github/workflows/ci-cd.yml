@@ -1,26 +1,145 @@
-name: BE CD
+name: BE CI/CD
 
 on:
-  workflow_run:
-    workflows: [ "BE CI" ]
-    types: [ completed ]
+  pull_request:
+    branches: [ "main", "dev" ]
+  push:
+    branches: [ "main", "dev"]
+  workflow_dispatch: { }
 
 permissions:
   contents: read
-  actions: read
 
 concurrency:
-  group: be-cd-dev-${{ github.event.workflow_run.head_branch }}
+  group: be-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 env:
-  RELEASE_ID: ${{ github.event.workflow_run.head_sha }}
-  BRANCH: ${{ github.event.workflow_run.head_branch }}
+  RELEASE_ID: ${{ github.sha }}
 
 jobs:
-  cd:
-    if: github.event.workflow_run.conclusion == 'success'
+  ci:
+    name: CI
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Record CI start
+        id: ci_time
+        run: echo "start=$(date +%s)" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "21"
+          cache: "gradle"
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      - name: Test & Check
+        id: time_check
+        run: |
+          start=$(date +%s)
+          ./gradlew clean check -x test --no-daemon
+          end=$(date +%s)
+          echo "start=${start}" >> "$GITHUB_OUTPUT"
+          echo "end=${end}" >> "$GITHUB_OUTPUT"
+
+      - name: Build (bootJar)
+        id: time_build
+        run: |
+          start=$(date +%s)
+          ./gradlew bootJar -x test --no-daemon
+          end=$(date +%s)
+          echo "start=${start}" >> "$GITHUB_OUTPUT"
+          echo "end=${end}" >> "$GITHUB_OUTPUT"
+
+      - name: List artifacts
+        run: ls -al build/libs
+
+      - name: Upload build artifact (jar)
+        uses: actions/upload-artifact@v4
+        with:
+          name: daeng-map-api-${{ env.RELEASE_ID }}
+          path: build/libs/*.jar
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Record CI end
+        id: ci_time_end
+        if: always()
+        run: echo "end=$(date +%s)" >> "$GITHUB_OUTPUT"
+
+      - name: Calculate CI times
+        id: ci_calc
+        if: always()
+        env:
+          COMMIT_MSG: ${{ github.event.pull_request.title || github.event.head_commit.message || github.workflow }}
+        run: |
+          ci_total=$(( ${{ steps.ci_time_end.outputs.end }} - ${{ steps.ci_time.outputs.start }} ))
+          check_sec=$(( ${{ steps.time_check.outputs.end || 0 }} - ${{ steps.time_check.outputs.start || 0 }} ))
+          build_sec=$(( ${{ steps.time_build.outputs.end || 0 }} - ${{ steps.time_build.outputs.start || 0 }} ))
+          echo "ci_total=${ci_total}" >> "$GITHUB_OUTPUT"
+          echo "check_sec=${check_sec}" >> "$GITHUB_OUTPUT"
+          echo "build_sec=${build_sec}" >> "$GITHUB_OUTPUT"
+          # 커밋 메시지에서 줄바꿈을 공백으로 변환하고, 쌍따옴표 이스케이프
+          safe_msg=$(echo "$COMMIT_MSG" | tr '\n' ' ' | sed 's/"/\\"/g' | head -c 200)
+          echo "safe_msg=${safe_msg}" >> "$GITHUB_OUTPUT"
+
+      - name: Notify Discord (CI Success)
+        if: success()
+        uses: Ilshidur/action-discord@0.4.0
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          DISCORD_EMBEDS: |
+            [{
+              "title": "[BE] CI: success",
+              "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+              "color": 5763719,
+              "description": "${{ steps.ci_calc.outputs.safe_msg }}",
+              "fields": [
+                {"name": "Release ID", "value": "`${{ env.RELEASE_ID }}`", "inline": true},
+                {"name": "Actor", "value": "${{ github.actor }}", "inline": true},
+                {"name": "Branch", "value": "${{ github.ref_name }}", "inline": true},
+                {"name": "Total CI", "value": "${{ steps.ci_calc.outputs.ci_total }}s", "inline": true},
+                {"name": "Check", "value": "${{ steps.ci_calc.outputs.check_sec }}s", "inline": true},
+                {"name": "Build", "value": "${{ steps.ci_calc.outputs.build_sec }}s", "inline": true}
+              ],
+              "timestamp": "${{ github.event.head_commit.timestamp || github.event.pull_request.updated_at }}"
+            }]
+
+      - name: Notify Discord (CI Failure)
+        if: failure()
+        uses: Ilshidur/action-discord@0.4.0
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          DISCORD_EMBEDS: |
+            [{
+              "title": "[BE] CI: failure",
+              "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+              "color": 15548997,
+              "description": "${{ steps.ci_calc.outputs.safe_msg }}",
+              "fields": [
+                {"name": "Release ID", "value": "`${{ env.RELEASE_ID }}`", "inline": true},
+                {"name": "Actor", "value": "${{ github.actor }}", "inline": true},
+                {"name": "Branch", "value": "${{ github.ref_name }}", "inline": true},
+                {"name": "Total CI", "value": "${{ steps.ci_calc.outputs.ci_total }}s", "inline": true},
+                {"name": "Check", "value": "${{ steps.ci_calc.outputs.check_sec }}s", "inline": true},
+                {"name": "Build", "value": "${{ steps.ci_calc.outputs.build_sec }}s", "inline": true}
+              ],
+              "timestamp": "${{ github.event.head_commit.timestamp || github.event.pull_request.updated_at }}"
+            }]
+
+  cd:
+    name: CD
+    needs: ci
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.base_ref == 'dev')
     timeout-minutes: 15
 
     steps:
@@ -28,38 +147,19 @@ jobs:
         id: cd_time
         run: echo "start=$(date +%s)" >> "$GITHUB_OUTPUT"
 
-      - name: Debug workflow_run info
-        run: |
-          echo "=== Workflow Run Info ==="
-          echo "workflow_run.id: ${{ github.event.workflow_run.id }}"
-          echo "workflow_run.run_number: ${{ github.event.workflow_run.run_number }}"
-          echo "workflow_run.head_sha: ${{ github.event.workflow_run.head_sha }}"
-          echo "Expected artifact name: daeng-map-api-${{ github.event.workflow_run.id }}"
-
       - name: Download build artifact
         uses: actions/download-artifact@v4
         with:
-          name: daeng-map-api-${{ github.event.workflow_run.head_sha }}
+          name: daeng-map-api-${{ env.RELEASE_ID }}
           path: build/libs
-          run-id: ${{ github.event.workflow_run.id }}
-          repository: ${{ github.repository }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-
-
-      - name: Verify downloaded artifact
-        run: |
-          echo "=== 다운로드된 파일 확인 ==="
-          ls -la build/libs/ || echo "build/libs 디렉토리가 없습니다"
-          find . -name "*.jar" -type f 2>/dev/null || echo "JAR 파일을 찾을 수 없습니다"
 
       - name: Copy JAR to EC2
         id: scp
         uses: appleboy/scp-action@v0.1.7
         with:
-          host: ${{ env.BRANCH == 'dev' && secrets.AWS_DEV_HOST || secrets.AWS_HOST }}
+          host: ${{ (github.ref_name == 'dev' || github.base_ref == 'dev') && secrets.AWS_DEV_HOST || secrets.AWS_HOST }}
           username: ${{ secrets.AWS_USERNAME }}
-          key: ${{ env.BRANCH == 'dev' && secrets.AWS_DEV_SSH_KEY || secrets.AWS_SSH_KEY }}
+          key: ${{ (github.ref_name == 'dev' || github.base_ref == 'dev') && secrets.AWS_DEV_SSH_KEY || secrets.AWS_SSH_KEY }}
           source: "build/libs/*.jar"
           target: "/tmp/be-deploy-${{ env.RELEASE_ID }}"
           strip_components: 2
@@ -68,12 +168,12 @@ jobs:
         id: deploy
         uses: appleboy/ssh-action@v1.0.3
         env:
-          GITHUB_SHA: ${{ env.RELEASE_ID }}
-          ENV_NAME: ${{ env.BRANCH == 'dev' && 'DEV' || 'PROD' }}
+          GITHUB_SHA: ${{ github.sha }}
+          ENV_NAME: ${{ (github.ref_name == 'dev' || github.base_ref == 'dev') && 'DEV' || 'PROD' }}
         with:
-          host: ${{ env.BRANCH == 'dev' && secrets.AWS_DEV_HOST || secrets.AWS_HOST }}
+          host: ${{ (github.ref_name == 'dev' || github.base_ref == 'dev') && secrets.AWS_DEV_HOST || secrets.AWS_HOST }}
           username: ${{ secrets.AWS_USERNAME }}
-          key: ${{ env.BRANCH == 'dev' && secrets.AWS_DEV_SSH_KEY || secrets.AWS_SSH_KEY }}
+          key: ${{ (github.ref_name == 'dev' || github.base_ref == 'dev') && secrets.AWS_DEV_SSH_KEY || secrets.AWS_SSH_KEY }}
           envs: GITHUB_SHA,ENV_NAME
           script: |
             #!/usr/bin/env bash
@@ -135,7 +235,7 @@ jobs:
             # 5. 타겟 포트의 기존 좀비 프로세스 정리
             PID_TO_KILL=$(lsof -ti :${TARGET_PORT} || true)
             if [ -n "$PID_TO_KILL" ]; then
-              echo "🧹 타겟 포트($TARGET_PORT)의 기존 프로세스 정리..."
+              echo "🧹 타겟 포트($TARGET_PORT)의 기존 프로세스 정리...."
               kill -9 $PID_TO_KILL || true
             fi
 
@@ -210,7 +310,7 @@ jobs:
         id: cd_calc
         if: always()
         env:
-          COMMIT_MSG: ${{ github.event.workflow_run.head_commit.message || github.workflow }}
+          COMMIT_MSG: ${{ github.event.head_commit.message || github.workflow }}
         run: |
           cd_total=$(( ${{ steps.cd_time_end.outputs.end }} - ${{ steps.cd_time.outputs.start }} ))
           echo "cd_total=${cd_total}" >> "$GITHUB_OUTPUT"
@@ -237,7 +337,7 @@ jobs:
                 {"name": "Upload (SCP)", "value": "${{ steps.scp.outcome }}", "inline": true},
                 {"name": "Deploy (SSH)", "value": "${{ steps.deploy.outcome }}", "inline": true}
               ],
-              "timestamp": "${{ github.event.workflow_run.updated_at }}"
+              "timestamp": "${{ github.event.head_commit.timestamp }}"
             }]
 
       - name: Notify Discord (CD Failure)
@@ -259,5 +359,5 @@ jobs:
                 {"name": "Upload (SCP)", "value": "${{ steps.scp.outcome }}", "inline": true},
                 {"name": "Deploy (SSH)", "value": "${{ steps.deploy.outcome }}", "inline": true}
               ],
-              "timestamp": "${{ github.event.workflow_run.updated_at }}"
+              "timestamp": "${{ github.event.head_commit.timestamp }}"
             }]

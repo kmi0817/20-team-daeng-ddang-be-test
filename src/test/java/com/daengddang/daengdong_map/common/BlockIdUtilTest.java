@@ -2,6 +2,7 @@ package com.daengddang.daengdong_map.common;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.daengddang.daengdong_map.util.BlockIdUtil;
 import org.junit.jupiter.api.Test;
 
 class BlockIdUtilTest {
