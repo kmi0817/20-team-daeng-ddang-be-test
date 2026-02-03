@@ -11,11 +11,11 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+
+import com.daengddang.daengdong_map.util.AfterCommitExecutor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 @Service
 @RequiredArgsConstructor
@@ -27,6 +27,7 @@ public class BlockSyncService {
     private final BlockOwnershipRepository blockOwnershipRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final ConcurrentMap<Long, SyncState> syncStates = new ConcurrentHashMap<>();
+    private final AfterCommitExecutor afterCommitExecutor;
 
     public String toAreaKey(int blockX, int blockY) {
         int areaX = Math.floorDiv(blockX, AREA_SIZE);
@@ -74,7 +75,7 @@ public class BlockSyncService {
         WebSocketMessage<BlocksSyncPayload> message =
                 new WebSocketMessage<>(WebSocketEventType.BLOCKS_SYNC, payload,
                         WebSocketEventType.BLOCKS_SYNC.getMessage());
-        sendAfterCommit(() -> messagingTemplate.convertAndSend("/topic/blocks/" + areaKey, message));
+        afterCommitExecutor.sendAfterCommit(() -> messagingTemplate.convertAndSend("/topic/blocks/" + areaKey, message));
     }
 
     private AreaRange toAreaRange(int blockX, int blockY) {
@@ -83,19 +84,6 @@ public class BlockSyncService {
         int minX = areaX * AREA_SIZE;
         int minY = areaY * AREA_SIZE;
         return new AreaRange(minX, minX + AREA_SIZE - 1, minY, minY + AREA_SIZE - 1);
-    }
-
-    private void sendAfterCommit(Runnable action) {
-        if (TransactionSynchronizationManager.isSynchronizationActive()) {
-            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    action.run();
-                }
-            });
-            return;
-        }
-        action.run();
     }
 
     private static class SyncState {
