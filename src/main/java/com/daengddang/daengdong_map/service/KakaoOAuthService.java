@@ -14,4 +14,8 @@ public class KakaoOAuthService {
     public KakaoOAuthUser authenticate(String code) {
         return kakaoClient.authenticate(code);
     }
+
+    public void unlinkByAdminKey(Long kakaoUserId) {
+        kakaoClient.unlinkByAdminKey(kakaoUserId);
+    }
 }

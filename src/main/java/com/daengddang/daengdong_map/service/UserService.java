@@ -35,6 +35,7 @@ public class UserService {
     private final WalkRepository walkRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final AccessValidator accessValidator;
+    private final KakaoOAuthService kakaoOAuthService;
 
     @Transactional
     public UserRegisterResponse registerUserInfo(Long userId, UserRegisterRequest dto) {
@@ -120,6 +121,10 @@ public class UserService {
     @Transactional
     public void withdrawUser(Long userId) {
         User user = accessValidator.getUserOrThrow(userId);
+        Long kakaoUserId = user.getKakaoUserId();
+        if (kakaoUserId != null) {
+            kakaoOAuthService.unlinkByAdminKey(kakaoUserId);
+        }
 
         Dog dog = dogRepository.findByUser(user).orElse(null);
         if (dog != null) {
