@@ -1,13 +1,12 @@
 package com.daengddang.daengdong_map.service;
 
-import com.daengddang.daengdong_map.common.BlockIdUtil;
 import com.daengddang.daengdong_map.common.ErrorCode;
 import com.daengddang.daengdong_map.common.exception.BaseException;
-import com.daengddang.daengdong_map.domain.block.Block;
 import com.daengddang.daengdong_map.domain.block.BlockOwnership;
 import com.daengddang.daengdong_map.dto.response.block.NearbyBlockListResponse;
 import com.daengddang.daengdong_map.dto.response.block.NearbyBlockResponse;
 import com.daengddang.daengdong_map.repository.BlockOwnershipRepository;
+import com.daengddang.daengdong_map.util.BlockOwnershipMapper;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -60,12 +59,11 @@ public class BlockService {
     }
 
     private NearbyBlockResponse toNearbyBlock(BlockOwnership ownership) {
-        Block block = ownership.getBlock();
-        String blockId = BlockIdUtil.toBlockId(block.getX(), block.getY());
+        String blockId = BlockOwnershipMapper.toBlockId(ownership);
         return NearbyBlockResponse.from(
                 blockId,
-                ownership.getDog().getId(),
-                ownership.getAcquiredAt()
+                BlockOwnershipMapper.toOwnerDogId(ownership),
+                BlockOwnershipMapper.toAcquiredAt(ownership)
         );
     }
 }
