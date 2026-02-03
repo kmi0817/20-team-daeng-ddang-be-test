@@ -37,6 +37,12 @@ jobs:
           repository: ${{ github.repository }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Verify downloaded artifact
+        run: |
+          echo "=== 다운로드된 파일 확인 ==="
+          ls -la build/libs/ || echo "build/libs 디렉토리가 없습니다"
+          find . -name "*.jar" -type f 2>/dev/null || echo "JAR 파일을 찾을 수 없습니다"
+
       - name: Copy JAR to EC2
         id: scp
         uses: appleboy/scp-action@v0.1.7
