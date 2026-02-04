@@ -34,10 +34,6 @@ public class DevAuthService {
     private final DogRepository dogRepository;
     private final BreedRepository breedRepository;
 
-    /* =======================
-       기존 로직
-       ======================= */
-
     @Transactional
     public User getOrCreate(Long kakaoUserId, String nickname, String prefix) {
         long resolvedKakaoUserId = resolveKakaoUserId(kakaoUserId);
@@ -87,16 +83,6 @@ public class DevAuthService {
                 .orElseThrow(() -> new BaseException(ErrorCode.RESOURCE_NOT_FOUND));
     }
 
-    /* =======================
-       🔥 부하테스트 전용 FAST PATH
-       ======================= */
-
-    /**
-     * 부하테스트 전용 유저 대량 생성
-     * - DB 조회 없음
-     * - 유니크만 보장
-     * - 현실성보다 속도/안정성 우선
-     */
     @Transactional
     public List<Long> seedUsersFast(int count, String prefix) {
         int target = resolveCount(count);
@@ -121,7 +107,6 @@ public class DevAuthService {
             createDog(user, breed, buildDogName(resolvedPrefix, i));
             userIds.add(user.getId());
 
-            // 대량 insert 시 영속성 컨텍스트 안정화
             if (i % 500 == 0) {
                 userRepository.flush();
                 dogRepository.flush();
@@ -131,9 +116,6 @@ public class DevAuthService {
         return userIds;
     }
 
-    /* =======================
-       내부 헬퍼 메서드
-       ======================= */
 
     private User createUser(long kakaoUserId, String prefix) {
         String resolvedPrefix = resolvePrefix(prefix);
