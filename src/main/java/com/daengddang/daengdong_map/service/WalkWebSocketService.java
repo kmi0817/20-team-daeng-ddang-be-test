@@ -16,6 +16,7 @@ import com.daengddang.daengdong_map.domain.walk.Walk;
 import com.daengddang.daengdong_map.domain.walk.WalkStatus;
 import com.daengddang.daengdong_map.repository.BlockOwnershipRepository;
 import com.daengddang.daengdong_map.repository.BlockRepository;
+import com.daengddang.daengdong_map.repository.WalkBlockLogRepository;
 import com.daengddang.daengdong_map.repository.WalkRepository;
 import com.daengddang.daengdong_map.util.AfterCommitExecutor;
 import com.daengddang.daengdong_map.util.CoordinateValidator;
@@ -37,6 +38,7 @@ public class WalkWebSocketService {
     private final WalkRepository walkRepository;
     private final BlockRepository blockRepository;
     private final BlockOwnershipRepository blockOwnershipRepository;
+    private final WalkBlockLogRepository walkBlockLogRepository;
     private final WalkPointWriter walkPointWriter;
     private final StayValidator stayValidator;
     private final BlockSyncService blockSyncService;
@@ -94,6 +96,7 @@ public class WalkWebSocketService {
                     .lastPassedAt(timestamp)
                     .build();
             blockOwnershipRepository.save(newOwnership);
+            walkBlockLogRepository.insertIfNotExists(walk.getId(), block.getId(), dog.getId(), timestamp);
             sendBlockOccupied(walkId, blockId, dog, timestamp, areaKey);
             blockSyncService.syncBlocks(walkId, blockX, blockY, areaKey, timestamp);
             return;
@@ -107,6 +110,7 @@ public class WalkWebSocketService {
 
         Long previousDogId = ownership.getDog().getId();
         ownership.updateOwner(dog, timestamp);
+        walkBlockLogRepository.insertIfNotExists(walk.getId(), block.getId(), dog.getId(), timestamp);
         sendBlockTaken(walkId, blockId, previousDogId, dog.getId(), timestamp, areaKey);
         blockSyncService.syncBlocks(walkId, blockX, blockY, areaKey, timestamp);
     }
@@ -114,8 +118,6 @@ public class WalkWebSocketService {
     public void sendError(Long walkId, String message) {
         messagingTemplate.convertAndSend("/topic/walks/" + walkId, WebSocketMessage.error(message));
     }
-
-    // blockId/좌표 변환은 BlockIdUtil에서 공통 처리한다.
 
     private void sendBlockOccupied(Long walkId, String blockId, Dog dog, LocalDateTime occupiedAt, String areaKey) {
         BlockOccupiedPayload payload = BlockOccupiedPayload.from(blockId, dog.getId(), dog.getName(), occupiedAt);

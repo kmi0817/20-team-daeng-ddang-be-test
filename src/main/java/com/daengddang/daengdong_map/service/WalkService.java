@@ -14,6 +14,7 @@ import com.daengddang.daengdong_map.dto.response.walk.OccupiedBlockResponse;
 import com.daengddang.daengdong_map.dto.response.walk.WalkEndResponse;
 import com.daengddang.daengdong_map.dto.response.walk.WalkStartResponse;
 import com.daengddang.daengdong_map.repository.BlockOwnershipRepository;
+import com.daengddang.daengdong_map.repository.WalkBlockLogRepository;
 import com.daengddang.daengdong_map.util.AccessValidator;
 import com.daengddang.daengdong_map.util.BlockOwnershipMapper;
 import com.daengddang.daengdong_map.util.WalkMetricsValidator;
@@ -34,6 +35,7 @@ public class WalkService {
     private final WalkRepository walkRepository;
     private final WalkPointRepository walkPointRepository;
     private final BlockOwnershipRepository blockOwnershipRepository;
+    private final WalkBlockLogRepository walkBlockLogRepository;
     private final AccessValidator accessValidator;
 
     @Transactional
@@ -96,6 +98,10 @@ public class WalkService {
         WalkPoint endPoint = WalkEndRequest.of(dto, walk, now);
         walkPointRepository.save(endPoint);
 
+        if (Boolean.TRUE.equals(dto.getIsValidated())) {
+            removeBlocksAcquiredInWalk(walk.getId());
+        }
+
         int occupiedBlockCount = blockOwnershipRepository.findAllByDog(dog).size();
 
         return WalkEndResponse.from(
@@ -129,5 +135,13 @@ public class WalkService {
                 BlockOwnershipMapper.toOwnerDogId(ownership),
                 BlockOwnershipMapper.toAcquiredAt(ownership)
         );
+    }
+
+    private void removeBlocksAcquiredInWalk(Long walkId) {
+        List<Long> blockIds = walkBlockLogRepository.findBlockIdsByWalkId(walkId);
+        if (blockIds.isEmpty()) {
+            return;
+        }
+        blockOwnershipRepository.deleteAllByIdInBatch(blockIds);
     }
 }
