@@ -39,7 +39,7 @@ public class BlockOccupancyService {
                     .lastPassedAt(timestamp)
                     .build();
             blockOwnershipRepository.save(newOwnership);
-            walkBlockLogRepository.insertIfNotExists(walk.getId(), block.getId(), dog.getId(), timestamp);
+            walkBlockLogRepository.insertIfNotExists(walk.getId(), block.getId(), dog.getId(), null, timestamp);
             return BlockOccupancyResult.occupied();
         }
 
@@ -50,7 +50,7 @@ public class BlockOccupancyService {
 
         Long previousDogId = ownership.getDog().getId();
         ownership.updateOwner(dog, timestamp);
-        walkBlockLogRepository.insertIfNotExists(walk.getId(), block.getId(), dog.getId(), timestamp);
+        walkBlockLogRepository.insertIfNotExists(walk.getId(), block.getId(), dog.getId(), previousDogId, timestamp);
         return BlockOccupancyResult.taken(previousDogId);
     }
 }

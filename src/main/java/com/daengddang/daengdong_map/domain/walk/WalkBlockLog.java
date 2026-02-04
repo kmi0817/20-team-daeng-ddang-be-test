@@ -50,14 +50,22 @@ public class WalkBlockLog {
     @JoinColumn(name = "dog_id", nullable = false)
     private Dog dog;
 
+    @Column(name = "previous_dog_id")
+    private Long previousDogId;
+
     @Column(name = "acquired_at", nullable = false)
     private LocalDateTime acquiredAt;
 
     @Builder
-    private WalkBlockLog(Walk walk, Block block, Dog dog, LocalDateTime acquiredAt) {
+    private WalkBlockLog(Walk walk,
+                         Block block,
+                         Dog dog,
+                         Long previousDogId,
+                         LocalDateTime acquiredAt) {
         this.walk = walk;
         this.block = block;
         this.dog = dog;
+        this.previousDogId = previousDogId;
         this.acquiredAt = acquiredAt;
     }
 

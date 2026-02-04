@@ -11,21 +11,22 @@ public interface WalkBlockLogRepository extends JpaRepository<WalkBlockLog, Long
 
     @Modifying
     @Query(value = """
-            INSERT INTO walk_block_logs (walk_id, block_id, dog_id, acquired_at)
-            VALUES (:walkId, :blockId, :dogId, :acquiredAt)
+            INSERT INTO walk_block_logs (walk_id, block_id, dog_id, previous_dog_id, acquired_at)
+            VALUES (:walkId, :blockId, :dogId, :previousDogId, :acquiredAt)
             ON CONFLICT (walk_id, block_id) DO NOTHING
             """, nativeQuery = true)
     void insertIfNotExists(
             @Param("walkId") Long walkId,
             @Param("blockId") Long blockId,
             @Param("dogId") Long dogId,
+            @Param("previousDogId") Long previousDogId,
             @Param("acquiredAt") java.time.LocalDateTime acquiredAt
     );
 
     @Query("""
-            select log.block.id
+            select log.block.id as blockId, log.previousDogId as previousDogId
             from WalkBlockLog log
             where log.walk.id = :walkId
             """)
-    List<Long> findBlockIdsByWalkId(@Param("walkId") Long walkId);
+    List<WalkBlockRestoreEntry> findRestoreEntriesByWalkId(@Param("walkId") Long walkId);
 }
