@@ -138,10 +138,24 @@ public class WalkService {
     }
 
     private void removeBlocksAcquiredInWalk(Long walkId) {
-        List<Long> blockIds = walkBlockLogRepository.findBlockIdsByWalkId(walkId);
-        if (blockIds.isEmpty()) {
+        List<com.daengddang.daengdong_map.repository.WalkBlockRestoreEntry> entries =
+                walkBlockLogRepository.findRestoreEntriesByWalkId(walkId);
+        if (entries.isEmpty()) {
             return;
         }
-        blockOwnershipRepository.deleteAllByIdInBatch(blockIds);
+
+        List<Long> blocksToDelete = new java.util.ArrayList<>();
+        LocalDateTime now = LocalDateTime.now();
+        for (com.daengddang.daengdong_map.repository.WalkBlockRestoreEntry entry : entries) {
+            if (entry.getPreviousDogId() == null) {
+                blocksToDelete.add(entry.getBlockId());
+                continue;
+            }
+            blockOwnershipRepository.restoreOwner(entry.getBlockId(), entry.getPreviousDogId(), now);
+        }
+
+        if (!blocksToDelete.isEmpty()) {
+            blockOwnershipRepository.deleteAllByIdInBatch(blocksToDelete);
+        }
     }
 }
