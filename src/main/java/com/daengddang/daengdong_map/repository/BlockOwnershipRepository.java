@@ -13,6 +13,8 @@ public interface BlockOwnershipRepository extends JpaRepository<BlockOwnership, 
 
     List<BlockOwnership> findAllByDog(Dog dog);
 
+    long countByDog(Dog dog);
+
     @Query("""
             select ownership
             from BlockOwnership ownership
