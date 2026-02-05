@@ -6,6 +6,7 @@ import com.daengddang.daengdong_map.dto.websocket.common.WebSocketMessage;
 import com.daengddang.daengdong_map.dto.websocket.outbound.BlockSyncEntry;
 import com.daengddang.daengdong_map.dto.websocket.outbound.BlocksSyncPayload;
 import com.daengddang.daengdong_map.repository.BlockOwnershipRepository;
+import com.daengddang.daengdong_map.websocket.WebSocketDestinations;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -75,7 +76,8 @@ public class BlockSyncService {
         WebSocketMessage<BlocksSyncPayload> message =
                 new WebSocketMessage<>(WebSocketEventType.BLOCKS_SYNC, payload,
                         WebSocketEventType.BLOCKS_SYNC.getMessage());
-        afterCommitExecutor.sendAfterCommit(() -> messagingTemplate.convertAndSend("/topic/blocks/" + areaKey, message));
+        afterCommitExecutor.sendAfterCommit(() ->
+                messagingTemplate.convertAndSend(WebSocketDestinations.blocks(areaKey), message));
     }
 
     private AreaRange toAreaRange(int blockX, int blockY) {

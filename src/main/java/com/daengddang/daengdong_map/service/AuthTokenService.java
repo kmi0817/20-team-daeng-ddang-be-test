@@ -25,9 +25,6 @@ public class AuthTokenService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final JwtProperties jwtProperties;
 
-    /**
-     * 로그인 성공 후 토큰 발급 + RefreshToken 저장
-     */
     @Transactional
     public TokenPair issueTokens(User user) {
 
@@ -54,9 +51,6 @@ public class AuthTokenService {
         return new TokenPair(accessToken, refreshToken);
     }
 
-    /**
-     * Refresh Token으로 Access Token 재발급
-     */
     @Transactional
     public String reissueAccessToken(String refreshToken) {
 
@@ -82,9 +76,6 @@ public class AuthTokenService {
         );
     }
 
-    /**
-     * 로그아웃 - 사용자의 모든 Refresh Token 무효화
-     */
     @Transactional
     public void logout(Long userId) {
         refreshTokenRepository.deleteAllByUserId(userId);

@@ -17,6 +17,7 @@ spring:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        generate_statistics: true
 
   servlet:
     multipart:
@@ -77,3 +78,6 @@ ai:
   fastapi:
     mission-judge-uri: ${FASTAPI_MISSION_JUDGE_URI}
     expression-analyze-uri: ${FASTAPI_FACE_ANALYZE_URI}
+
+ratelimit:
+  enabled: true

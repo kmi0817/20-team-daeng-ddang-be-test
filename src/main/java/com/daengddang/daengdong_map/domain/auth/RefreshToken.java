@@ -8,11 +8,6 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
-/**
- * Refresh Token을 DB에 저장하기 위한 엔티티
- * - 로그아웃 시 삭제하여 토큰 무효화
- * - 만료된 토큰은 스케줄러로 정리 가능
- */
 @Getter
 @Entity
 @Table(name = "refresh_tokens", indexes = {

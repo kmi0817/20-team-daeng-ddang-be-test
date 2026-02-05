@@ -23,10 +23,6 @@ public class JwtTokenProvider {
         );
     }
 
-    /**
-     * Access Token 생성
-     * - 인증/인가 판단용
-     */
     public String generateAccessToken(Long userId, UserStatus status) {
         Instant now = Instant.now();
         Instant expiry = now.plus(
@@ -44,10 +40,6 @@ public class JwtTokenProvider {
                 .compact();
     }
 
-    /**
-     * Refresh Token 생성
-     * - 재발급용 (인가 정보 없음)
-     */
     public String generateRefreshToken(Long userId) {
         Instant now = Instant.now();
         Instant expiry = now.plus(
@@ -64,9 +56,6 @@ public class JwtTokenProvider {
                 .compact();
     }
 
-    /**
-     * Claims 파싱
-     */
     public Claims parseClaims(String token) {
         return Jwts.parserBuilder()
                 .setSigningKey(key)

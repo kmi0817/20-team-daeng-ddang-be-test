@@ -5,12 +5,15 @@ import com.daengddang.daengdong_map.domain.dog.Dog;
 import java.util.Collection;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface BlockOwnershipRepository extends JpaRepository<BlockOwnership, Long> {
 
     List<BlockOwnership> findAllByDog(Dog dog);
+
+    long countByDog(Dog dog);
 
     @Query("""
             select ownership
@@ -36,5 +39,20 @@ public interface BlockOwnershipRepository extends JpaRepository<BlockOwnership, 
             @Param("maxX") int maxX,
             @Param("minY") int minY,
             @Param("maxY") int maxY
+    );
+
+    @Modifying
+    @Query(value = """
+            UPDATE block_ownership
+            SET dog_id = :dogId,
+                acquired_at = :updatedAt,
+                last_passed_at = :updatedAt,
+                updated_at = :updatedAt
+            WHERE block_id = :blockId
+            """, nativeQuery = true)
+    void restoreOwner(
+            @Param("blockId") Long blockId,
+            @Param("dogId") Long dogId,
+            @Param("updatedAt") java.time.LocalDateTime updatedAt
     );
 }

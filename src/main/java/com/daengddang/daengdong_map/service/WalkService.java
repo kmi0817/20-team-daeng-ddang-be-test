@@ -14,6 +14,7 @@ import com.daengddang.daengdong_map.dto.response.walk.OccupiedBlockResponse;
 import com.daengddang.daengdong_map.dto.response.walk.WalkEndResponse;
 import com.daengddang.daengdong_map.dto.response.walk.WalkStartResponse;
 import com.daengddang.daengdong_map.repository.BlockOwnershipRepository;
+import com.daengddang.daengdong_map.repository.WalkBlockLogRepository;
 import com.daengddang.daengdong_map.util.AccessValidator;
 import com.daengddang.daengdong_map.util.BlockOwnershipMapper;
 import com.daengddang.daengdong_map.util.WalkMetricsValidator;
@@ -34,6 +35,7 @@ public class WalkService {
     private final WalkRepository walkRepository;
     private final WalkPointRepository walkPointRepository;
     private final BlockOwnershipRepository blockOwnershipRepository;
+    private final WalkBlockLogRepository walkBlockLogRepository;
     private final AccessValidator accessValidator;
 
     @Transactional
@@ -96,7 +98,11 @@ public class WalkService {
         WalkPoint endPoint = WalkEndRequest.of(dto, walk, now);
         walkPointRepository.save(endPoint);
 
-        int occupiedBlockCount = blockOwnershipRepository.findAllByDog(dog).size();
+        if (Boolean.TRUE.equals(dto.getIsValidated())) {
+            removeBlocksAcquiredInWalk(walk.getId());
+        }
+
+        int occupiedBlockCount = Math.toIntExact(blockOwnershipRepository.countByDog(dog));
 
         return WalkEndResponse.from(
                 walk.getId(),
@@ -129,5 +135,27 @@ public class WalkService {
                 BlockOwnershipMapper.toOwnerDogId(ownership),
                 BlockOwnershipMapper.toAcquiredAt(ownership)
         );
+    }
+
+    private void removeBlocksAcquiredInWalk(Long walkId) {
+        List<com.daengddang.daengdong_map.repository.WalkBlockRestoreEntry> entries =
+                walkBlockLogRepository.findRestoreEntriesByWalkId(walkId);
+        if (entries.isEmpty()) {
+            return;
+        }
+
+        List<Long> blocksToDelete = new java.util.ArrayList<>();
+        LocalDateTime now = LocalDateTime.now();
+        for (com.daengddang.daengdong_map.repository.WalkBlockRestoreEntry entry : entries) {
+            if (entry.getPreviousDogId() == null) {
+                blocksToDelete.add(entry.getBlockId());
+                continue;
+            }
+            blockOwnershipRepository.restoreOwner(entry.getBlockId(), entry.getPreviousDogId(), now);
+        }
+
+        if (!blocksToDelete.isEmpty()) {
+            blockOwnershipRepository.deleteAllByIdInBatch(blocksToDelete);
+        }
     }
 }

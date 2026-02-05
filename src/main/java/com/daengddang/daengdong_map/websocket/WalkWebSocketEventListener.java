@@ -12,12 +12,14 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.messaging.SessionSubscribeEvent;
+import com.daengddang.daengdong_map.websocket.WebSocketDestinations;
 
 @Component
 @RequiredArgsConstructor
 public class WalkWebSocketEventListener {
 
-    private static final Pattern WALK_TOPIC_PATTERN = Pattern.compile("^/topic/walks/(\\d+)$");
+    private static final Pattern WALK_TOPIC_PATTERN =
+            Pattern.compile("^" + WebSocketDestinations.WALKS_PREFIX + "(\\d+)$");
 
     private final SimpMessagingTemplate messagingTemplate;
 

@@ -7,6 +7,7 @@ import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBr
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 import com.daengddang.daengdong_map.websocket.WebSocketChannelInterceptor;
+import com.daengddang.daengdong_map.websocket.WebSocketDestinations;
 import lombok.RequiredArgsConstructor;
 
 @Configuration
@@ -18,14 +19,14 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/ws/walks")
+        registry.addEndpoint(WebSocketDestinations.WS_ENDPOINT)
                 .setAllowedOriginPatterns("*");
     }
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
-        registry.setApplicationDestinationPrefixes("/app");
-        registry.enableSimpleBroker("/topic");
+        registry.setApplicationDestinationPrefixes(WebSocketDestinations.APP_PREFIX);
+        registry.enableSimpleBroker(WebSocketDestinations.TOPIC_PREFIX);
     }
 
     @Override

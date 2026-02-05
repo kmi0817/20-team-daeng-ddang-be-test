@@ -25,6 +25,9 @@ public class WalkEndRequest {
     @NotNull
     private WalkStatus status;
 
+    @NotNull
+    private Boolean isValidated;
+
     public static WalkPoint of(WalkEndRequest dto, Walk walk, LocalDateTime recordedAt) {
         return WalkPoint.builder()
                 .walk(walk)

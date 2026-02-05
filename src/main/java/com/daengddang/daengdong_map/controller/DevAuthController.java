@@ -31,7 +31,6 @@ public class DevAuthController {
     private final DevAuthService devAuthService;
     private final AuthTokenService authTokenService;
 
-    /** 개발용: 사용자 1명 생성(또는 existing) + 토큰 발급 */
     @PostMapping("/login")
     public ApiResponse<AuthTokenResponse> devLogin(
             @RequestBody(required = false) DevLoginRequest req,
@@ -52,7 +51,6 @@ public class DevAuthController {
         );
     }
 
-    /** 개발용: N명 생성 (현실성 있는 seed) */
     @PostMapping("/seed")
     public ApiResponse<DevSeedResponse> seed(
             @Valid @RequestBody DevSeedRequest req
@@ -65,7 +63,6 @@ public class DevAuthController {
         );
     }
 
-    /** 🔥 부하테스트 전용: FAST seed */
     @PostMapping("/seed/fast")
     public ApiResponse<DevSeedResponse> seedFast(
             @Valid @RequestBody DevSeedRequest req
@@ -78,7 +75,6 @@ public class DevAuthController {
         );
     }
 
-    /** 개발용: 특정 userId로 토큰 발급 */
     @PostMapping("/token/{userId}")
     public ApiResponse<AuthTokenResponse> issueToken(
             @PathVariable Long userId,
@@ -98,7 +94,7 @@ public class DevAuthController {
     private void setRefreshTokenCookie(HttpServletResponse response, String refreshToken) {
         Cookie cookie = new Cookie("refreshToken", refreshToken);
         cookie.setHttpOnly(true);
-        cookie.setSecure(false); // dev/local only
+        cookie.setSecure(false);
         cookie.setPath("/");
         cookie.setMaxAge(60 * 60 * 24 * 14);
         response.addCookie(cookie);

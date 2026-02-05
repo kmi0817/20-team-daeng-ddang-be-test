@@ -14,6 +14,7 @@ public enum ErrorCode {
     METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "올바른 메서드 접근이 아닙니다."),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "내부 서버 오류"),
     SERVICE_UNDER_MAINTENANCE(HttpStatus.SERVICE_UNAVAILABLE, "서버 점검중입니다."),
+    TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS, "요청이 너무 많습니다. 잠시 후 다시 시도해주세요."),
 
     /* =======================
      * 5.2 인증 / 인가
