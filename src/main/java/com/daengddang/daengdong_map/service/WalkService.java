@@ -102,7 +102,7 @@ public class WalkService {
             removeBlocksAcquiredInWalk(walk.getId());
         }
 
-        int occupiedBlockCount = blockOwnershipRepository.findAllByDog(dog).size();
+        int occupiedBlockCount = Math.toIntExact(blockOwnershipRepository.countByDog(dog));
 
         return WalkEndResponse.from(
                 walk.getId(),
