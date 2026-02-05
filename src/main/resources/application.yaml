@@ -78,3 +78,6 @@ ai:
   fastapi:
     mission-judge-uri: ${FASTAPI_MISSION_JUDGE_URI}
     expression-analyze-uri: ${FASTAPI_FACE_ANALYZE_URI}
+
+ratelimit:
+  enabled: true
