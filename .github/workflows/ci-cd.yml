@@ -213,7 +213,7 @@ jobs:
         with:
           host: ${{ steps.tf_out.outputs.public_ip }}
           username: ${{ secrets.AWS_USERNAME }}
-          key: ${{ secrets.AWS_DEV_SSH_KEY }}
+          key: ${{ secrets.AWS_SSH_KEY }}
           source: "build/libs/*.jar"
           target: "/tmp/be-deploy-${{ env.RELEASE_ID }}"
           strip_components: 2
@@ -226,7 +226,7 @@ jobs:
         with:
           host: ${{ steps.tf_out.outputs.public_ip }}
           username: ${{ secrets.AWS_USERNAME }}
-          key: ${{ secrets.AWS_DEV_SSH_KEY }}
+          key: ${{ secrets.AWS_SSH_KEY }}
           script: |
             #!/usr/bin/env bash
             set -euo pipefail
