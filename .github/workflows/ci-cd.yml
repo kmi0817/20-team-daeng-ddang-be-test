@@ -207,16 +207,20 @@ jobs:
           name: daeng-map-api-${{ env.RELEASE_ID }}
           path: build/libs
 
+      - name: Write SSH key file
+        run: |
+          set -euo pipefail
+          echo "${{ secrets.AWS_DEV_SSH_KEY }}" > ./key.pem
+          chmod 600 ./key.pem
+
       - name: Copy JAR to EC2
-        id: scp
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ steps.tf_out.outputs.public_ip }}
-          username: ${{ secrets.AWS_USERNAME }}
-          key: ${{ secrets.AWS_SSH_KEY }}
+          username: ubuntu
+          key_path: ./key.pem
           source: "build/libs/*.jar"
           target: "/tmp/be-deploy-${{ env.RELEASE_ID }}"
-          strip_components: 2
 
       - name: Deploy
         id: deploy
@@ -226,7 +230,7 @@ jobs:
         with:
           host: ${{ steps.tf_out.outputs.public_ip }}
           username: ${{ secrets.AWS_USERNAME }}
-          key: ${{ secrets.AWS_SSH_KEY }}
+          key_path: ./key.pem
           script: |
             #!/usr/bin/env bash
             set -euo pipefail
