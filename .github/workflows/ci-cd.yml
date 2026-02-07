@@ -146,20 +146,32 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Clone Terraform
+        run: |
+          mkdir staging
+          cd staging
+          git init
+          git config core.sparsecheckout true
+          git remote add -f origin "https://github.com/100-hours-a-week/20-team-daeng-ddang-cloud.git"
+          echo "terraform/v1/aws" >> .git/info/sparse-checkout
+          git pull origin main
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: ap-northeast-2
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
 
-      - name: connection TEST
+      - name: Create staging
         run: |
-          aws sts get-caller-identity
+          umask 022
+          echo "${{ secrets.STAGING_TFVARS_FILE_B64 }}" | base64 -d > "staging/terraform/v1/aws/environments/staging.tfvars"
 
-          aws ec2 describe-instances \
-              --region ap-northeast-2 \
-              --query 'Reservations[].Instances[].{Id:InstanceId,State:State.Name,PrivateIp:PrivateIpAddress,Name:Tags[?Key==`Name`]|[0].Value}' \
-              --output table
+          cd staging/terraform/v1/aws/stacks/staging-ephemeral
+
+          terraform init -reconfigure -backend-config=backend-staging.hcl
+          terraform apply -auto-approve -var-file="../../environments/staging.tfvars"
+
       # - name: Download build artifact
       #   uses: actions/download-artifact@v4
       #   with:
