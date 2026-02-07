@@ -197,7 +197,7 @@ jobs:
           echo "base_url=${BASE_URL}" >> "$GITHUB_OUTPUT"
           echo "ws_url=${WS_URL}" >> "$GITHUB_OUTPUT"
 
-          echo "📡 public_ip=${public_ip}"
+          echo "📡 public_ip=${PUBLIC_IP}"
           echo "📡 base_url=${BASE_URL}"
           echo "🔌 ws_url=${WS_URL}"
 
