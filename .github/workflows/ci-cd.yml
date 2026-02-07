@@ -146,15 +146,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Clone Terraform
-        run: |
-          mkdir staging
-          cd staging
-          git init
-          git config core.sparsecheckout true
-          git remote add -f origin "https://github.com/100-hours-a-week/20-team-daeng-ddang-cloud.git"
-          echo "terraform/v1/aws" >> .git/info/sparse-checkout
-          git pull origin main
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.14.3
+
+      - name: Checkout Terraform repo (sparse)
+        uses: actions/checkout@v4
+        with:
+          repository: 100-hours-a-week/20-team-daeng-ddang-cloud
+          ref: main
+          path: staging
+          sparse-checkout: terraform/v1/aws
+          sparse-checkout-cone-mode: false
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -164,7 +168,8 @@ jobs:
 
       - name: Create staging
         run: |
-          umask 022
+          set -euo pipefail
+
           echo "${{ secrets.STAGING_TFVARS_FILE_B64 }}" | base64 -d > "staging/terraform/v1/aws/environments/staging.tfvars"
 
           cd staging/terraform/v1/aws/stacks/staging-ephemeral
