@@ -143,6 +143,15 @@ jobs:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.base_ref == 'dev')
     timeout-minutes: 15
 
+    outputs:
+      slo_passed: ${{ steps.judge.outputs.slo_passed }}
+      ws_url: ${{ steps.tf_out.outputs.ws_url }}
+      base_url: ${{ steps.tf_out.outputs.base_url }}
+
+    env:
+      TF_STACK_DIR: staging/terraform/v1/aws/stacks/staging-ephemeral
+      ENV_NAME: "staging"
+
     steps:
       - uses: actions/checkout@v4
 
@@ -169,21 +178,181 @@ jobs:
       - name: Create staging
         run: |
           set -euo pipefail
-
           echo "${{ secrets.STAGING_TFVARS_FILE_B64 }}" | base64 -d > "staging/terraform/v1/aws/environments/staging.tfvars"
-
-          cd staging/terraform/v1/aws/stacks/staging-ephemeral
-
+          cd "${TF_STACK_DIR}"
           terraform init -reconfigure -backend-config=backend-staging.hcl
           terraform apply -auto-approve -var-file="../../environments/staging.tfvars"
 
-      # - name: Download build artifact
-      #   uses: actions/download-artifact@v4
-      #   with:
-      #     name: daeng-map-api-${{ env.RELEASE_ID }}
-      #     path: build/libs
+      - name: Read Terraform outputs
+        id: tf_out
+        run: |
+          set -euo pipefail
+          cd "${TF_STACK_DIR}"
 
-  # cd:
+          PUBLIC_IP="$(terraform output -raw public_ip)"
+          BASE_URL="$(terraform output -raw base_url)"
+          WS_URL="$(terraform output -raw ws_url)"
+
+          echo "public_ip=${PUBLIC_IP}" >> "$GITHUB_OUTPUT"
+          echo "base_url=${BASE_URL}" >> "$GITHUB_OUTPUT"
+          echo "ws_url=${WS_URL}" >> "$GITHUB_OUTPUT"
+
+          echo "📡 public_ip=${public_ip}"
+          echo "📡 base_url=${BASE_URL}"
+          echo "🔌 ws_url=${WS_URL}"
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: daeng-map-api-${{ env.RELEASE_ID }}
+          path: build/libs
+
+      - name: Copy JAR to EC2
+        id: scp
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ steps.tf_out.outputs.public_ip }}
+          username: ${{ secrets.AWS_USERNAME }}
+          key: ${{ secrets.AWS_DEV_SSH_KEY }}
+          source: "build/libs/*.jar"
+          target: "/tmp/be-deploy-${{ env.RELEASE_ID }}"
+          strip_components: 2
+
+      - name: Deploy
+        id: deploy
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          GITHUB_SHA: ${{ env.RELEASE_ID }}
+        with:
+          host: ${{ steps.tf_out.outputs.public_ip }}
+          username: ${{ secrets.AWS_USERNAME }}
+          key: ${{ secrets.AWS_DEV_SSH_KEY }}
+          script: |
+            #!/usr/bin/env bash
+            set -euo pipefail
+
+            ENV_NAME='${{ env.ENV_NAME }}'
+            echo "🌐 ${ENV_NAME} 서버에 연결되었습니다."
+
+            # === 설정 변수 ===
+            BASE_DIR="/opt/app/backend"
+            RELEASES_DIR="${BASE_DIR}/releases"
+            NEW_RELEASE_DIR="${RELEASES_DIR}/${GITHUB_SHA}"
+            TEMP_JAR_DIR="/tmp/be-deploy-${GITHUB_SHA}"
+            CURRENT_LINK="${BASE_DIR}/current"
+            TARGET_PORT=8080
+
+            # 기존 프로세스 제거
+            pm2 delete daeng-backend-8080 2>/dev/null || true
+            pm2 delete daeng-backend-8081 2>/dev/null || true
+
+            # 스프링 실행 프로필 dev로 설정
+            sed -i 's/-Dspring.profiles.active=prod/-Dspring.profiles.active=dev/g' ${BASE_DIR}/ecosystem.config.js
+
+            # 폴더 생성
+            mkdir -p ${RELEASES_DIR}
+
+            # 2. 파일 준비
+            mkdir -p ${NEW_RELEASE_DIR}
+            if [ -d "${TEMP_JAR_DIR}" ]; then
+              mv ${TEMP_JAR_DIR}/*.jar ${NEW_RELEASE_DIR}/app.jar
+            else
+              echo "❌ 전송된 JAR 파일이 없습니다."
+              exit 1
+            fi
+
+            # 4. current 링크를 새 릴리즈로 교체
+            ln -sfn "${NEW_RELEASE_DIR}" "${CURRENT_LINK}"
+            echo "🔗 current 링크 업데이트: ${NEW_RELEASE_DIR}"
+
+            # 6. 새 애플리케이션 실행 (PM2)
+            echo "🚀 PM2로 애플리케이션 시작 (Port: $TARGET_PORT)..."
+
+            TARGET_PORT=${TARGET_PORT} JAR_PATH=${CURRENT_LINK}/app.jar pm2 start ${BASE_DIR}/ecosystem.config.js
+
+            # 7. 헬스 체크
+            echo "🏥 헬스 체크 시작..."
+            HEALTH_CHECK_URL="http://localhost:${TARGET_PORT}/api/v3/health"
+            IS_HEALTHY=0
+
+            for i in {1..10}; do
+              sleep 5
+              HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" ${HEALTH_CHECK_URL} || echo "fail")
+
+              if [ "$HTTP_CODE" == "200" ]; then
+                echo "✅ 헬스 체크 성공!"
+                IS_HEALTHY=1
+                break
+              else
+                echo "⏳ 시작 대기 중.... ($i/10) (Code: $HTTP_CODE)"
+              fi
+            done
+
+            # 8. 결과 처리 및 트래픽 전환
+            if [ "$IS_HEALTHY" -ne 1 ]; then
+              echo "❌ 헬스 체크 실패. 배포를 중단합니다."
+              exit 1
+            fi
+
+            pm2 list
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Fetch SLO script
+        run: |
+          set -euo pipefail
+          git clone --depth 1 https://github.com/100-hours-a-week/20-team-daeng-ddang-cloud.git cloud
+          cp cloud/ci-cd/v1/be/ws_walk_slo.js ./ws_walk_slo.js
+
+      - name: Install deps for SLO script
+        run: |
+          set -euo pipefail
+          npm init -y >/dev/null 2>&1
+          npm i @stomp/stompjs >/dev/null 2>&1
+
+      - name: Run WebSocket SLO
+        id: run_slo
+        run: |
+          set -euo pipefail
+          export BASE_URL="${{ steps.tf_out.outputs.base_url }}"
+          export WS_URL="${{ steps.tf_out.outputs.ws_url }}"
+          export CONCURRENCY="5"
+          export RUN_FOR_MS="180000"
+          export LOG_TOP_N="3"
+          export OUT_DIR="."
+
+          node ./ws_walk_slo.js
+
+      - name: Upload SLO result JSON
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ws-slo-result
+          path: result-*.json
+
+      - name: Judge SLO
+        id: judge
+        if: always()
+        run: |
+          # 이전 step이 실패하면 이 step은 실행될 수 있으니, status를 보고 판정
+          if [ "${{ steps.run_slo.outcome }}" = "success" ]; then
+            echo "slo_passed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "slo_passed=false" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+
+      - name: Destroy staging (always)
+        if: always()
+        run: |
+          set +e
+          cd "${TF_STACK_DIR}"
+          terraform destroy -auto-approve -var-file="../../environments/staging.tfvars"
+
+    # cd:
   #   name: CD
   #   needs: ci
   #   runs-on: ubuntu-latest
