@@ -238,13 +238,6 @@ jobs:
             CURRENT_LINK="${BASE_DIR}/current"
             TARGET_PORT=8080
 
-            # 기존 프로세스 제거
-            pm2 delete daeng-backend-8080 2>/dev/null || true
-            pm2 delete daeng-backend-8081 2>/dev/null || true
-
-            # 스프링 실행 프로필 dev로 설정
-            sed -i 's/-Dspring.profiles.active=prod/-Dspring.profiles.active=dev/g' ${BASE_DIR}/ecosystem.config.js
-
             # 폴더 생성
             mkdir -p ${RELEASES_DIR}
 
