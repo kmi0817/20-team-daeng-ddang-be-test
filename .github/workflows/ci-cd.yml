@@ -357,7 +357,7 @@ jobs:
     needs: [ci, slo]
     runs-on: ubuntu-latest
     if: |
-      github.event_name == 'push' && (
+      always() && github.event_name == 'push' && (
         (github.ref_name == 'dev') ||
         (github.ref_name == 'main' && needs.slo.result == 'success' && needs.slo.outputs.slo_passed == 'true')
       )
