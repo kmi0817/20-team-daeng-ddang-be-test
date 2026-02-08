@@ -234,6 +234,12 @@ jobs:
             #!/usr/bin/env bash
             set -euo pipefail
 
+            export NVM_DIR="$HOME/.nvm"
+            source "$NVM_DIR/nvm.sh"
+
+            node -v
+            pm2 -v
+
             ENV_NAME='${{ env.ENV_NAME }}'
             echo "🌐 ${ENV_NAME} 서버에 연결되었습니다."
 
