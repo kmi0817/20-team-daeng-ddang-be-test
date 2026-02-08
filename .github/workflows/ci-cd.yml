@@ -260,7 +260,7 @@ jobs:
             # 6. 새 애플리케이션 실행 (PM2)
             echo "🚀 PM2로 애플리케이션 시작 (Port: $TARGET_PORT)..."
 
-            PM2="home/ubuntu/.nvm/versions/node/v20.20.0/bin/pm2"
+            PM2="/home/ubuntu/.nvm/versions/node/v20.20.0/bin/pm2"
 
             TARGET_PORT=${TARGET_PORT} JAR_PATH=${RELEASE_DIR}/app.jar $PM2 start ${BASE_DIR}/ecosystem.config.js
 
