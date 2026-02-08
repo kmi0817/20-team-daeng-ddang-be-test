@@ -47,7 +47,7 @@ public class WalkRuntimeStateRegistry {
             this.lastSyncedAt = lastSyncedAt;
         }
 
-        public void recordLastSeenAt(LocalDateTime lastSyncedAt) {
+        public void recordLastSyncedAt(LocalDateTime lastSyncedAt) {
             this.lastSyncedAt = lastSyncedAt;
         }
     }

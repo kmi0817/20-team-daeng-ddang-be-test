@@ -48,7 +48,7 @@ public class BlockSyncService {
             return;
         }
 
-        state.recordLastSeenAt(now);
+        state.recordLastSyncedAt(now);
         sendBlocksSync(blockX, blockY, areaKey);
     }
 
