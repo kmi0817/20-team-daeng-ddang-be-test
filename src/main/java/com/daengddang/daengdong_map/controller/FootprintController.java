@@ -5,6 +5,8 @@ import com.daengddang.daengdong_map.common.SuccessCode;
 import com.daengddang.daengdong_map.controller.api.FootprintApi;
 import com.daengddang.daengdong_map.dto.request.footprint.FootprintCalendarRequest;
 import com.daengddang.daengdong_map.dto.response.footprint.FootprintCalendarResponse;
+import com.daengddang.daengdong_map.dto.response.footprint.FootprintDiaryDetailResponse;
+import com.daengddang.daengdong_map.dto.response.footprint.FootprintDiaryExpressionResponse;
 import com.daengddang.daengdong_map.dto.response.footprint.FootprintDailyRecordsResponse;
 import com.daengddang.daengdong_map.security.AuthUser;
 import com.daengddang.daengdong_map.service.FootprintService;
@@ -50,5 +52,25 @@ public class FootprintController implements FootprintApi {
     ) {
         FootprintDailyRecordsResponse response = footprintService.getDailyRecords(authUser.getUserId(), date);
         return ApiResponse.success(SuccessCode.DAILY_RECORD_LIST_RETRIEVED, response);
+    }
+
+    @GetMapping("/diaries/{walkDiaryId}/expressions")
+    @Override
+    public ApiResponse<FootprintDiaryExpressionResponse> getDiaryExpression(
+            @AuthenticationPrincipal AuthUser authUser,
+            @PathVariable Long walkDiaryId
+    ) {
+        FootprintDiaryExpressionResponse response = footprintService.getDiaryExpression(authUser.getUserId(), walkDiaryId);
+        return ApiResponse.success(SuccessCode.EMOTION_ANALYSIS_RESULT_RETRIEVED, response);
+    }
+
+    @GetMapping("/diaries/{walkDiaryId}")
+    @Override
+    public ApiResponse<FootprintDiaryDetailResponse> getDiaryDetail(
+            @AuthenticationPrincipal AuthUser authUser,
+            @PathVariable Long walkDiaryId
+    ) {
+        FootprintDiaryDetailResponse response = footprintService.getDiaryDetail(authUser.getUserId(), walkDiaryId);
+        return ApiResponse.success(SuccessCode.WALK_DIARY_RETRIEVED, response);
     }
 }

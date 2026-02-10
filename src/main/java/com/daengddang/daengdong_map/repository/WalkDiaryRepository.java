@@ -5,6 +5,7 @@ import com.daengddang.daengdong_map.repository.projection.DailyRecordView;
 import com.daengddang.daengdong_map.repository.projection.DateCountView;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -38,4 +39,14 @@ public interface WalkDiaryRepository extends JpaRepository<WalkDiary, Long>  {
             @Param("startAt") LocalDateTime startAt,
             @Param("endAt") LocalDateTime endAt
     );
+
+    @Query("""
+            SELECT wd
+            FROM WalkDiary wd
+            JOIN FETCH wd.user u
+            JOIN FETCH wd.walk w
+            LEFT JOIN FETCH u.region
+            WHERE wd.id = :walkDiaryId
+            """)
+    Optional<WalkDiary> findByIdWithUserRegionAndWalk(@Param("walkDiaryId") Long walkDiaryId);
 }
