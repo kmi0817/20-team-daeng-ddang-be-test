@@ -1,10 +1,11 @@
 name: BE CI/CD
 
 on:
-  pull_request:
-    branches: ["main", "dev"]
-  push:
-    branches: ["main", "dev"]
+  # v1 보관용이므로 비활성화
+  # pull_request:
+  #   branches: ["main", "dev"]
+  # push:
+  #   branches: ["main", "dev"]
   workflow_dispatch: {}
 
 permissions:
