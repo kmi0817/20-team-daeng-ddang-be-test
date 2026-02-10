@@ -2,13 +2,17 @@ package com.daengddang.daengdong_map.service;
 
 import com.daengddang.daengdong_map.common.ErrorCode;
 import com.daengddang.daengdong_map.common.exception.BaseException;
+import com.daengddang.daengdong_map.domain.diary.WalkDiary;
 import com.daengddang.daengdong_map.dto.request.footprint.FootprintCalendarRequest;
 import com.daengddang.daengdong_map.dto.response.footprint.FootprintCalendarDayResponse;
 import com.daengddang.daengdong_map.dto.response.footprint.FootprintCalendarResponse;
+import com.daengddang.daengdong_map.dto.response.footprint.FootprintDiaryDetailResponse;
+import com.daengddang.daengdong_map.dto.response.footprint.FootprintDiaryExpressionResponse;
 import com.daengddang.daengdong_map.dto.response.footprint.FootprintDailyRecordItemResponse;
 import com.daengddang.daengdong_map.dto.response.footprint.FootprintDailyRecordsResponse;
 import com.daengddang.daengdong_map.dto.response.footprint.FootprintRecordType;
 import com.daengddang.daengdong_map.repository.AnalysisRepository;
+import com.daengddang.daengdong_map.repository.ExpressionRepository;
 import com.daengddang.daengdong_map.repository.WalkDiaryRepository;
 import com.daengddang.daengdong_map.repository.projection.DailyRecordView;
 import com.daengddang.daengdong_map.repository.projection.DateCountView;
@@ -35,6 +39,7 @@ public class FootprintService {
 
     private final WalkDiaryRepository walkDiaryRepository;
     private final AnalysisRepository analysisRepository;
+    private final ExpressionRepository expressionRepository;
     private final AccessValidator accessValidator;
 
     public FootprintCalendarResponse getCalendarRecords(Long userId, FootprintCalendarRequest request) {
@@ -96,6 +101,46 @@ public class FootprintService {
         }
 
         return FootprintDailyRecordsResponse.of(date, records);
+    }
+
+    public FootprintDiaryExpressionResponse getDiaryExpression(Long userId, Long walkDiaryId) {
+        accessValidator.getUserOrThrow(userId);
+
+        WalkDiary walkDiary = walkDiaryRepository.findByIdWithUserRegionAndWalk(walkDiaryId)
+                .orElseThrow(() -> new BaseException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        if (!userId.equals(walkDiary.getUser().getId())) {
+            throw new BaseException(ErrorCode.FORBIDDEN);
+        }
+
+        return expressionRepository.findByWalk(walkDiary.getWalk())
+                .map(FootprintDiaryExpressionResponse::from)
+                .orElse(null);
+    }
+
+    public FootprintDiaryDetailResponse getDiaryDetail(Long userId, Long walkDiaryId) {
+        accessValidator.getUserOrThrow(userId);
+
+        WalkDiary walkDiary = walkDiaryRepository.findByIdWithUserRegionAndWalk(walkDiaryId)
+                .orElseThrow(() -> new BaseException(ErrorCode.RESOURCE_NOT_FOUND));
+
+        if (!userId.equals(walkDiary.getUser().getId())) {
+            throw new BaseException(ErrorCode.FORBIDDEN);
+        }
+
+        String region = walkDiary.getUser().getRegion() == null
+                ? null
+                : walkDiary.getUser().getRegion().getFullName();
+
+        return FootprintDiaryDetailResponse.of(
+                walkDiary.getId(),
+                walkDiary.getCreatedAt(),
+                walkDiary.getMapImageUrl(),
+                walkDiary.getWalk().getDistance(),
+                walkDiary.getWalk().getDuration(),
+                region,
+                walkDiary.getMemo()
+        );
     }
 
     private YearMonth toYearMonth(Integer year, Integer month) {
