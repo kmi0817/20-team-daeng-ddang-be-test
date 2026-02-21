@@ -1,0 +1,219 @@
+name: BE CI (V2)
+
+on:
+  pull_request:
+    branches: ["main", "dev"]
+  push:
+    branches: ["main", "dev"]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: be-v2-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  GITHUB_SHA: ${{ github.sha }}
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    outputs:
+      ci_start: ${{ steps.ci_time.outputs.start }}
+      ci_end: ${{ steps.ci_time_end.outputs.end }}
+
+      test_start: ${{ steps.time_test.outputs.start }}
+      test_end: ${{ steps.time_test.outputs.end }}
+
+      build_start: ${{ steps.time_build.outputs.start }}
+      build_end: ${{ steps.time_build.outputs.end }}
+
+      image_repo: ${{ steps.meta.outputs.image_repo }}
+      image_tag: ${{ steps.meta.outputs.image_tag }}
+      short_sha: ${{ steps.meta.outputs.short_sha }}
+      safe_msg: ${{ steps.msg.outputs.safe_msg }}
+
+    steps:
+      - name: Record CI start
+        id: ci_time
+        run: echo "start=$(date +%s)" >> "$GITHUB_OUTPUT"
+
+      - name: Capture commit message
+        id: msg
+        env:
+          COMMIT_MSG: ${{ github.event.pull_request.title || github.event.head_commit.message || github.workflow }}
+        run: |
+          safe_msg=$(echo "$COMMIT_MSG" | tr '\n' ' ' | sed 's/"/\\"/g' | head -c 200)
+          echo "safe_msg=${safe_msg}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compute image meta
+        id: meta
+        run: |
+          set -euo pipefail
+          SHORT_SHA="${GITHUB_SHA::7}"
+          IMAGE_REPO="${{ secrets.DOCKER_IMAGE }}"
+          IMAGE_TAG="sha-${SHORT_SHA}"
+
+          echo "short_sha=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "image_repo=${IMAGE_REPO}" >> "$GITHUB_OUTPUT"
+          echo "image_tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+
+          mkdir -p out
+          cat > out/image-meta.env <<EOF
+          IMAGE_REPO=${IMAGE_REPO}
+          IMAGE_TAG=${IMAGE_TAG}
+          COMMIT_SHA=${GITHUB_SHA}
+          SHORT_SHA=${SHORT_SHA}
+          EOF
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "21"
+          cache: "gradle"
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      - name: Test
+        id: time_test
+        run: |
+          start=$(date +%s)
+          # ./gradlew clean test --no-daemon
+          end=$(date +%s)
+          echo "start=${start}" >> "$GITHUB_OUTPUT"
+          echo "end=${end}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub (push only)
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build
+        id: time_build
+        run: |
+          start=$(date +%s)
+          docker build -t "${{ steps.meta.outputs.image_repo }}:${{ steps.meta.outputs.image_tag }}" .
+          end=$(date +%s)
+          echo "start=${start}" >> "$GITHUB_OUTPUT"
+          echo "end=${end}" >> "$GITHUB_OUTPUT"
+      - name: Push (push only)
+        if: github.event_name == 'push'
+        run: |
+          docker push "${{ steps.meta.outputs.image_repo }}:${{ steps.meta.outputs.image_tag }}"
+
+      - name: Upload image meta (push only)
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-meta
+          path: out/image-meta.env
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Record CI end
+        id: ci_time_end
+        if: always()
+        run: echo "end=$(date +%s)" >> "$GITHUB_OUTPUT"
+
+  notify:
+    name: Notify
+    runs-on: ubuntu-latest
+    needs: build
+    if: always()
+    timeout-minutes: 3
+
+    steps:
+      - name: Notify
+        if: always()
+        env:
+          WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          JOB_STATUS: ${{ needs.build.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TIMESTAMP: ${{ github.event.head_commit.timestamp || github.event.pull_request.updated_at }}
+          ACTOR: ${{ github.actor }}
+          BRANCH: ${{ github.ref_name }}
+          EVENT_NAME: ${{ github.event_name }}
+
+          CI_START: ${{ needs.build.outputs.ci_start }}
+          CI_END: ${{ needs.build.outputs.ci_end }}
+
+          TEST_S: ${{ needs.build.outputs.test_start }}
+          TEST_E: ${{ needs.build.outputs.test_end }}
+
+          BUILD_S: ${{ needs.build.outputs.build_start }}
+          BUILD_E: ${{ needs.build.outputs.build_end }}
+
+          IMAGE_TAG: ${{ needs.build.outputs.image_tag }}
+          SHORT_SHA: ${{ needs.build.outputs.short_sha }}
+          SAFE_MSG: ${{ needs.build.outputs.safe_msg }}
+          ENV_NAME: >-
+            ${{
+              (github.event_name == 'pull_request' && github.base_ref == 'main') && 'prod' ||
+              (github.event_name == 'pull_request') && 'dev' ||
+              (github.ref_name == 'main' && 'prod') ||
+              'dev'
+            }}
+        run: |
+          set -euo pipefail
+
+          [ -z "${WEBHOOK:-}" ] && echo "⚠️ DISCORD_WEBHOOK_URL이 공백이므로 본 단계를 스킵합니다." && exit 0
+
+          # 안전한 산술 계산용 함수
+          dur() { local s="${1:-}" e="${2:-}"; [ -n "$s" ] && [ -n "$e" ] && echo $((e - s)) || echo 0; }
+
+          ci_total="$(dur "$CI_START" "$CI_END")"
+          test_sec="$(dur "$TEST_S" "$TEST_E")"
+          build_sec="$(dur "$BUILD_S" "$BUILD_E")"
+
+          TIMESTAMP="${TIMESTAMP:-$(date -u +%FT%TZ)}"
+
+          if [ "$JOB_STATUS" = "success" ]; then
+            TITLE="✅ [BE / ${ENV_NAME}] CI Success"
+            COLOR=5763719
+          else
+            TITLE="❌ [BE / ${ENV_NAME}] CI Failed"
+            COLOR=15548997
+          fi
+
+          JSON_PAYLOAD=$(cat <<JSON
+          {
+            "embeds": [
+              {
+                "title": "$TITLE",
+                "url": "$RUN_URL",
+                "color": $COLOR,
+                "description": "$SAFE_MSG",
+                "fields": [
+                  {"name":"Release ID","value":"\`${GITHUB_SHA}\`","inline":false},
+
+                  {"name":"Actor","value":"${ACTOR}","inline":false},
+                  {"name":"Branch","value":"${BRANCH}","inline":true},
+                  {"name": "Event Name","value":"${EVENT_NAME}","inline":true},
+
+                  {"name":"Total CI","value":"${ci_total}s","inline":false},
+                  {"name":"Test","value":"${test_sec}s","inline":true},
+                  {"name":"Build","value":"${build_sec}s","inline":true}
+                ],
+                "timestamp": "$TIMESTAMP"
+              }
+            ]
+          }
+          JSON
+          )
+
+          curl -sS -X POST -H "Content-Type: application/json" --data-binary "$JSON_PAYLOAD" "$WEBHOOK" || true
