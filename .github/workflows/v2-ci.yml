@@ -201,11 +201,11 @@ jobs:
                 "fields": [
                   {"name":"Release ID","value":"\`${GITHUB_SHA}\`","inline":false},
 
-                  {"name":"Actor","value":"${ACTOR}","inline":false},
+                  {"name":"Actor","value":"${ACTOR}","inline":true},
                   {"name":"Branch","value":"${BRANCH}","inline":true},
                   {"name": "Event Name","value":"${EVENT_NAME}","inline":true},
 
-                  {"name":"Total CI","value":"${ci_total}s","inline":false},
+                  {"name":"Total CI","value":"${ci_total}s","inline":true},
                   {"name":"Test","value":"${test_sec}s","inline":true},
                   {"name":"Build","value":"${build_sec}s","inline":true}
                 ],
