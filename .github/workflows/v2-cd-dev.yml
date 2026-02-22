@@ -63,7 +63,16 @@ jobs:
         id: meta
         run: |
           set -euo pipefail
+
+          # 1) 현재 step에서 즉시 환경변수 로드
+          set -a
+          source meta/image-meta.env
+          set +a
+
+          # 2) 다음 step에서도 쓰도록 GITHUB_ENV에 저장
           cat meta/image-meta.env >> "$GITHUB_ENV"
+
+          # 3) outputs 기록
           echo "image_tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
           echo "short_sha=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
           echo "commit_sha=${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
@@ -277,9 +286,12 @@ jobs:
     name: Notify
     runs-on: ubuntu-latest
     needs: deploy
-    if: always()
+    if: >
+      always() &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'dev' &&
+      github.event.workflow_run.event == 'push'
     timeout-minutes: 3
-
     steps:
       - name: Notify
         if: always()
