@@ -17,7 +17,7 @@ concurrency:
 env:
   AWS_REGION: ap-northeast-2
   ENV_NAME: dev
-  SSM_PREFIX: /daeng-map/prod/be
+  SSM_PREFIX: /daeng-map/prod/be # 테스트용 추후 dev로 변경
 
   APP_DIR: /opt/app/backend
   UPSTREAM_CONF: /etc/caddy/conf.d/upstream.caddy
@@ -216,23 +216,23 @@ jobs:
           fi
           BASH
 
-          # placeholder 치환
-          CMD="${CMD/__AWS_REGION__/${{ env.AWS_REGION }}}"
-          CMD="${CMD/__SSM_PREFIX__/${{ env.SSM_PREFIX }}}"
-          CMD="${CMD/__APP_DIR__/${{ env.APP_DIR }}}"
-          CMD="${CMD/__UPSTREAM_CONF__/${{ env.UPSTREAM_CONF }}}"
-          CMD="${CMD/__CADDYFILE__/${{ env.CADDYFILE }}}"
-          CMD="${CMD/__COMPOSE_FILE__/${{ env.COMPOSE_FILE }}}"
-          CMD="${CMD/__IMAGE_REPO__/${IMAGE_REPO}}"
-          CMD="${CMD/__IMAGE_TAG__/${IMAGE_TAG}}"
-          CMD="${CMD/__DOCKERHUB_USERNAME__/${DOCKERHUB_USERNAME}}"
-          CMD="${CMD/__DOCKERHUB_TOKEN__/${DOCKERHUB_TOKEN}}"
-
           COMMAND_ID="$(aws ssm send-command \
             --document-name "AWS-RunShellScript" \
             --comment "BE CD DEV inline ${COMMIT_SHA}" \
             --targets "Key=tag:Name,Values=daeng-map-dev" \
-            --parameters commands="$CMD" \
+            --parameters "commands=[
+              \"AWS_REGION=${AWS_REGION}\",
+              \"SSM_PREFIX=${SSM_PREFIX}\",
+              \"APP_DIR=${APP_DIR}\",
+              \"UPSTREAM_CONF=${UPSTREAM_CONF}\",
+              \"CADDYFILE=${CADDYFILE}\",
+              \"COMPOSE_FILE=${COMPOSE_FILE}\",
+              \"IMAGE_REPO=${IMAGE_REPO}\",
+              \"IMAGE_TAG=${IMAGE_TAG}\",
+              \"DOCKERHUB_USERNAME=${DOCKERHUB_USERNAME}\",
+              \"DOCKERHUB_TOKEN=${DOCKERHUB_TOKEN}\",
+              \"bash -lc '$(printf %q "$CMD")'\"
+            ]" \
             --query "Command.CommandId" --output text)"
 
           echo "command_id=${COMMAND_ID}" >> "$GITHUB_OUTPUT"
