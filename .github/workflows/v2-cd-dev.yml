@@ -93,7 +93,9 @@ jobs:
           set -euo pipefail
           start=$(date +%s); echo "start=${start}" >> "$GITHUB_OUTPUT"
 
-          # SSM에서 실행될 스크립트
+          # -----------------------------
+          # SSM에서 실행할 실제 스크립트 정의
+          # -----------------------------
           read -r -d '' CMD <<'BASH'
           set -euo pipefail
 
@@ -105,18 +107,6 @@ jobs:
           require docker
           require curl
           require caddy
-
-          AWS_REGION="__AWS_REGION__"
-          SSM_PREFIX="__SSM_PREFIX__"
-          APP_DIR="__APP_DIR__"
-          UPSTREAM_CONF="__UPSTREAM_CONF__"
-          CADDYFILE="__CADDYFILE__"
-          COMPOSE_FILE="__COMPOSE_FILE__"
-
-          IMAGE_REPO="__IMAGE_REPO__"
-          IMAGE_TAG="__IMAGE_TAG__"
-          DOCKERHUB_USERNAME="__DOCKERHUB_USERNAME__"
-          DOCKERHUB_TOKEN="__DOCKERHUB_TOKEN__"
 
           mkdir -p "${APP_DIR}" /etc/caddy/conf.d
 
@@ -154,10 +144,12 @@ jobs:
             --query "Parameters[*].[Name,Value]" \
             --output text \
           | awk -F '\t' -v p="${SSM_PREFIX}/" '{
-              key=$1; sub(p,"",key); gsub(/\//,"_",key);
-              gsub(/\r/,"",$2);
-              print key"="$2
-            }' > "$tmp"
+            key=$1;
+            sub(p,"",key);      # prefix 제거
+            gsub(/\//,"_",key); # 혹시 남아있을지 모를 슬래시 방지
+            gsub(/\r/,"",$2);
+            print key"="$2
+          }' > "$tmp"
           chmod 600 "$tmp"
           mv "$tmp" "${APP_DIR}/.env"
 
@@ -216,24 +208,39 @@ jobs:
           fi
           BASH
 
-          COMMAND_ID="$(aws ssm send-command \
+          # -----------------------------
+          # 환경변수 주입 및 base64 인코딩
+          # -----------------------------
+          REMOTE_SCRIPT="export AWS_REGION='${AWS_REGION}'
+          export SSM_PREFIX='${SSM_PREFIX}'
+          export APP_DIR='${APP_DIR}'
+          export UPSTREAM_CONF='${UPSTREAM_CONF}'
+          export CADDYFILE='${CADDYFILE}'
+          export COMPOSE_FILE='${COMPOSE_FILE}'
+          export IMAGE_REPO='${IMAGE_REPO}'
+          export IMAGE_TAG='${IMAGE_TAG}'
+          export DOCKERHUB_USERNAME='${DOCKERHUB_USERNAME}'
+          export DOCKERHUB_TOKEN='${DOCKERHUB_TOKEN}'
+          ${REMOTE_SCRIPT}
+          "
+          SCRIPT_B64=$(printf "%s" "$REMOTE_SCRIPT" | base64 -w0)
+
+          COMMAND_ID="$(
+          aws ssm send-command \
             --document-name "AWS-RunShellScript" \
             --comment "BE CD DEV inline ${COMMIT_SHA}" \
             --targets "Key=tag:Name,Values=daeng-map-dev" \
-            --parameters "commands=[
-              \"AWS_REGION=${AWS_REGION}\",
-              \"SSM_PREFIX=${SSM_PREFIX}\",
-              \"APP_DIR=${APP_DIR}\",
-              \"UPSTREAM_CONF=${UPSTREAM_CONF}\",
-              \"CADDYFILE=${CADDYFILE}\",
-              \"COMPOSE_FILE=${COMPOSE_FILE}\",
-              \"IMAGE_REPO=${IMAGE_REPO}\",
-              \"IMAGE_TAG=${IMAGE_TAG}\",
-              \"DOCKERHUB_USERNAME=${DOCKERHUB_USERNAME}\",
-              \"DOCKERHUB_TOKEN=${DOCKERHUB_TOKEN}\",
-              \"bash -lc '$(printf %q "$CMD")'\"
-            ]" \
-            --query "Command.CommandId" --output text)"
+            --parameters "$(cat <<JSON
+          {
+            "commands": [
+              "echo ${SCRIPT_B64} | base64 -d > /tmp/be_cd.sh",
+              "bash /tmp/be_cd.sh"
+            ]
+          }
+          JSON
+          )" \
+            --query "Command.CommandId" --output text
+          )"
 
           echo "command_id=${COMMAND_ID}" >> "$GITHUB_OUTPUT"
 
