@@ -1,0 +1,344 @@
+name: BE CD DEV (V2)
+
+on:
+  workflow_run:
+    workflows: ["BE CI (V2)"]
+    types: [completed]
+
+permissions:
+  contents: read
+  actions: read
+  id-token: write
+
+concurrency:
+  group: be-v2-cd-dev-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: true
+
+env:
+  AWS_REGION: ap-northeast-2
+  ENV_NAME: dev
+  SSM_PREFIX: /daeng-map/prod/be
+
+  APP_DIR: /opt/app/backend
+  UPSTREAM_CONF: /etc/caddy/conf.d/upstream.caddy
+  CADDYFILE: /etc/caddy/Caddyfile
+  COMPOSE_FILE: /opt/app/backend/docker-compose.bg.yml
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    environment: dev
+
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'dev' &&
+      github.event.workflow_run.event == 'push'
+
+    outputs:
+      cd_start: ${{ steps.cd_time.outputs.start }}
+      cd_end: ${{ steps.cd_time_end.outputs.end }}
+      deploy_start: ${{ steps.time_deploy.outputs.start }}
+      deploy_end: ${{ steps.time_deploy.outputs.end }}
+      image_tag: ${{ steps.meta.outputs.image_tag }}
+      short_sha: ${{ steps.meta.outputs.short_sha }}
+      commit_sha: ${{ steps.meta.outputs.commit_sha }}
+
+    steps:
+      - name: Record CD start
+        id: cd_time
+        run: echo "start=$(date +%s)" >> "$GITHUB_OUTPUT"
+
+      - name: Download image meta from CI run
+        uses: actions/download-artifact@v4
+        with:
+          name: image-meta
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: meta
+
+      - name: Load image meta
+        id: meta
+        run: |
+          set -euo pipefail
+          cat meta/image-meta.env >> "$GITHUB_ENV"
+          echo "image_tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "commit_sha=${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+
+      - name: Deploy via SSM
+        id: time_deploy
+        env:
+          IMAGE_REPO: ${{ secrets.DOCKER_IMAGE }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          start=$(date +%s); echo "start=${start}" >> "$GITHUB_OUTPUT"
+
+          # SSM에서 실행될 스크립트
+          read -r -d '' CMD <<'BASH'
+          set -euo pipefail
+
+          require() { command -v "$1" >/dev/null 2>&1 || { echo "Missing command: $1" >&2; exit 1; }; }
+          log() { echo "[$(date -Is)] $*" >&2; }
+
+          require aws
+          require awk
+          require docker
+          require curl
+          require caddy
+
+          AWS_REGION="__AWS_REGION__"
+          SSM_PREFIX="__SSM_PREFIX__"
+          APP_DIR="__APP_DIR__"
+          UPSTREAM_CONF="__UPSTREAM_CONF__"
+          CADDYFILE="__CADDYFILE__"
+          COMPOSE_FILE="__COMPOSE_FILE__"
+
+          IMAGE_REPO="__IMAGE_REPO__"
+          IMAGE_TAG="__IMAGE_TAG__"
+          DOCKERHUB_USERNAME="__DOCKERHUB_USERNAME__"
+          DOCKERHUB_TOKEN="__DOCKERHUB_TOKEN__"
+
+          mkdir -p "${APP_DIR}" /etc/caddy/conf.d
+
+          # 1) docker pull 로그인
+          echo "__DOCKERHUB_TOKEN__" | docker login -u "__DOCKERHUB_USERNAME__" --password-stdin
+
+          # 2) docker-compose 파일(1개 파일로 BG)
+          cat > "${COMPOSE_FILE}" <<EOF
+          services:
+            daeng-backend:
+              image: "\${IMAGE_REPO}:\${IMAGE_TAG}"
+              container_name: "daeng-be-\${COLOR}"
+              restart: unless-stopped
+              ports:
+                - "\${HOST_PORT}:8080"
+              env_file:
+                - ${APP_DIR}/.env
+              environment:
+                SPRING_PROFILES_ACTIVE: "\${SPRING_PROFILES_ACTIVE:-dev}"
+              healthcheck:
+                test: ["CMD-SHELL", "curl -fsS http://localhost:8080/api/v3/health >/dev/null || exit 1"]
+                interval: 5s
+                timeout: 2s
+                retries: 12
+                start_period: 20s
+          EOF
+
+          # 3) Parameter Store로 .env 렌더링
+          tmp="${APP_DIR}/.env.tmp"
+          aws ssm get-parameters-by-path \
+            --path "${SSM_PREFIX}" \
+            --with-decryption \
+            --recursive \
+            --region "${AWS_REGION}" \
+            --query "Parameters[*].[Name,Value]" \
+            --output text \
+          | awk -F '\t' -v p="${SSM_PREFIX}/" '{
+              key=$1; sub(p,"",key); gsub(/\//,"_",key);
+              gsub(/\r/,"",$2);
+              print key"="$2
+            }' > "$tmp"
+          chmod 600 "$tmp"
+          mv "$tmp" "${APP_DIR}/.env"
+
+          log "✅ ${APP_DIR}/.env 생성 완료 (600)"
+
+          # 4) Current/Target 결정
+          IS_8080_ALIVE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 2 http://127.0.0.1:8080/api/v3/health || echo "fail")
+
+          if [ "$IS_8080_ALIVE" == "200" ]; then
+            OLD_COLOR=blue;  OLD_PORT=8080
+            NEW_COLOR=green; NEW_PORT=8081
+          else
+            OLD_COLOR=green; OLD_PORT=8081
+            NEW_COLOR=blue;  NEW_PORT=8080
+          fi
+
+          log "ℹ️ Current: ${OLD_COLOR}(${OLD_PORT}) -> Target: ${NEW_COLOR}(${NEW_PORT})"
+
+          # 5) Target 배포
+          export COLOR="${NEW_COLOR}"
+          export HOST_PORT="${NEW_PORT}"
+          docker compose -p "daeng-backend-${NEW_COLOR}" -f "${COMPOSE_FILE}" pull
+          docker compose -p "daeng-backend-${NEW_COLOR}" -f "${COMPOSE_FILE}" up -d --remove-orphans
+
+          # 6) 헬스체크
+          HEALTH_URL="http://127.0.0.1:${HOST_PORT}/api/v3/health"
+          ok=0
+          for i in {1..30}; do
+            if curl -fsS --max-time 2 "$HEALTH_URL" >/dev/null; then ok=1; break; fi
+            sleep 2
+          done
+
+          if [ "$ok" -ne 1 ]; then
+            log "❌ 헬스체크 실패"
+            docker compose -p "daeng-backend-${COLOR}" -f "$COMPOSE_FILE" logs --tail=200 || true
+            docker compose -p "daeng-backend-${COLOR}" -f "$COMPOSE_FILE" down || true
+            exit 1
+          fi
+
+          log "✅ 헬스체크 성공"
+
+          # 7) Caddy 트래픽 전환
+          BEFORE="$(cat "$UPSTREAM_CONF" 2>/dev/null || true)"
+          echo "reverse_proxy localhost:${NEW_PORT}" | tee "$UPSTREAM_CONF" >/dev/null
+
+          if caddy reload --config "$CADDYFILE"; then
+            log "✅ Caddy ${NEW_PORT}로 트래픽 전환 완료"
+            # 8) old down
+            docker compose -p "daeng-backend-${OLD_COLOR}" -f "${COMPOSE_FILE}" down || true
+          else
+            log "🚨 Caddy reload 실패. upstream을 롤백합니다."
+            printf "%s" "$BEFORE" > "$UPSTREAM_CONF" || true
+            caddy reload --config "$CADDYFILE" || true
+            docker compose -p "daeng-backend-${NEW_COLOR}" -f "${COMPOSE_FILE}" down || true
+            exit 1
+          fi
+          BASH
+
+          # placeholder 치환
+          CMD="${CMD/__AWS_REGION__/${{ env.AWS_REGION }}}"
+          CMD="${CMD/__SSM_PREFIX__/${{ env.SSM_PREFIX }}}"
+          CMD="${CMD/__APP_DIR__/${{ env.APP_DIR }}}"
+          CMD="${CMD/__UPSTREAM_CONF__/${{ env.UPSTREAM_CONF }}}"
+          CMD="${CMD/__CADDYFILE__/${{ env.CADDYFILE }}}"
+          CMD="${CMD/__COMPOSE_FILE__/${{ env.COMPOSE_FILE }}}"
+          CMD="${CMD/__IMAGE_REPO__/${IMAGE_REPO}}"
+          CMD="${CMD/__IMAGE_TAG__/${IMAGE_TAG}}"
+          CMD="${CMD/__DOCKERHUB_USERNAME__/${DOCKERHUB_USERNAME}}"
+          CMD="${CMD/__DOCKERHUB_TOKEN__/${DOCKERHUB_TOKEN}}"
+
+          COMMAND_ID="$(aws ssm send-command \
+            --document-name "AWS-RunShellScript" \
+            --comment "BE CD DEV inline ${COMMIT_SHA}" \
+            --targets "Key=tag:Name,Values=daeng-map-dev" \
+            --parameters commands="$CMD" \
+            --query "Command.CommandId" --output text)"
+
+          echo "command_id=${COMMAND_ID}" >> "$GITHUB_OUTPUT"
+
+          # 종료될 때까지 최대 15분 대기
+          deadline=$(( $(date +%s) + 900 ))
+          while true; do
+            statuses="$(aws ssm list-command-invocations --command-id "$COMMAND_ID" --details \
+              --query "CommandInvocations[].Status" --output text || true)"
+
+            if [ -z "${statuses:-}" ]; then
+              sleep 2
+            elif echo "$statuses" | tr '\t' '\n' | grep -Eq '^(Pending|InProgress|Delayed)$'; then
+              sleep 3
+            else
+              break
+            fi
+
+            if [ "$(date +%s)" -gt "$deadline" ]; then
+              echo "SSM command timeout" >&2
+              exit 1
+            fi
+          done
+
+          # 요약 테이블
+          aws ssm list-command-invocations --command-id "$COMMAND_ID" --details \
+            --query "CommandInvocations[*].{InstanceId:InstanceId,Status:Status}" --output table
+
+          # 실패 판정
+          BAD_CNT="$(aws ssm list-command-invocations --command-id "$COMMAND_ID" --details \
+            --query "length(CommandInvocations[?Status!='Success'])" --output text)"
+
+          if [ "$BAD_CNT" != "0" ]; then
+            aws ssm list-command-invocations --command-id "$COMMAND_ID" --details \
+              --query "CommandInvocations[*].{
+                InstanceId:InstanceId,
+                Status:Status,
+                StdOut:CommandPlugins[0].Output,
+                StdErr:CommandPlugins[0].StandardErrorContent
+              }" --output json || true
+            exit 1
+          fi
+
+          end=$(date +%s); echo "end=${end}" >> "$GITHUB_OUTPUT"
+
+      - name: Record CD end
+        id: cd_time_end
+        run: echo "end=$(date +%s)" >> "$GITHUB_OUTPUT"
+
+  notify:
+    name: Notify
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: always()
+    timeout-minutes: 3
+
+    steps:
+      - name: Notify
+        if: always()
+        env:
+          WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          JOB_STATUS: ${{ needs.deploy.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          TIMESTAMP: ${{ github.event.workflow_run.updated_at }}
+          ACTOR: ${{ github.actor }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+          EVENT_NAME: ${{ github.event_name }}
+
+          CD_START: ${{ needs.deploy.outputs.cd_start }}
+          CD_END: ${{ needs.deploy.outputs.cd_end }}
+          DEPLOY_S: ${{ needs.deploy.outputs.deploy_start }}
+          DEPLOY_E: ${{ needs.deploy.outputs.deploy_end }}
+          IMAGE_TAG: ${{ needs.deploy.outputs.image_tag }}
+          COMMIT_SHA: ${{ needs.deploy.outputs.commit_sha }}
+        run: |
+          set -euo pipefail
+
+          [ -z "${WEBHOOK:-}" ] && echo "⚠️ DISCORD_WEBHOOK_URL이 공백이므로 본 단계를 스킵합니다." && exit 0
+
+          # 안전한 산술 계산용 함수
+          dur() { local s="${1:-}" e="${2:-}"; [ -n "$s" ] && [ -n "$e" ] && echo $((e - s)) || echo 0; }
+
+          cd_total="$(dur "$CD_START" "$CD_END")"
+          deploy_sec="$(dur "$DEPLOY_S" "$DEPLOY_E")"
+
+          if [ "$JOB_STATUS" = "success" ]; then
+            TITLE="✅ [BE / ${ENV_NAME}] CD Success"
+            COLOR=5763719
+          else
+            TITLE="❌ [BE / ${ENV_NAME}] CD Failed"
+            COLOR=15548997
+          fi
+
+          JSON_PAYLOAD=$(cat <<JSON
+          {
+            "embeds": [
+              {
+                "title": "$TITLE",
+                "url": "$RUN_URL",
+                "color": $COLOR,
+                "fields": [
+                  {"name":"Release ID","value":"\`${COMMIT_SHA}\`","inline":false},
+
+                  {"name":"Actor","value":"${ACTOR}","inline":true},
+                  {"name":"Branch","value":"${BRANCH}","inline":true},
+                  {"name": "Event Name","value":"${EVENT_NAME}","inline":true},
+
+                  {"name":"Total CD","value":"${cd_total}s","inline":true},
+                  {"name":"Deploy","value":"${deploy_sec}s","inline":true}
+                ],
+                "timestamp": "$TIMESTAMP"
+              }
+            ]
+          }
+          JSON
+          )
+
+          curl -sS -X POST -H "Content-Type: application/json" --data-binary "$JSON_PAYLOAD" "$WEBHOOK" || true
