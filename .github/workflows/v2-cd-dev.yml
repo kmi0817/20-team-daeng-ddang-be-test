@@ -17,7 +17,7 @@ concurrency:
 env:
   AWS_REGION: ap-northeast-2
   ENV_NAME: dev
-  SSM_PREFIX: /daeng-map/prod/be
+  SSM_PREFIX: /daeng-map/prod/be # 테스트용 추후 dev로 변경
 
   APP_DIR: /opt/app/backend
   UPSTREAM_CONF: /etc/caddy/conf.d/upstream.caddy
