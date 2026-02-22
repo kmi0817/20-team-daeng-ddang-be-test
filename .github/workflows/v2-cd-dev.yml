@@ -277,9 +277,12 @@ jobs:
     name: Notify
     runs-on: ubuntu-latest
     needs: deploy
-    if: always()
+    if: >
+      always() &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'dev' &&
+      github.event.workflow_run.event == 'push'
     timeout-minutes: 3
-
     steps:
       - name: Notify
         if: always()
