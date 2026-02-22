@@ -75,6 +75,7 @@ jobs:
       - name: Deploy via SSM
         id: time_deploy
         env:
+          IMAGE_REPO: ${{ secrets.DOCKER_IMAGE }}
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
         run: |
