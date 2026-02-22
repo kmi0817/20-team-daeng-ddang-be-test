@@ -16,6 +16,7 @@ concurrency:
 
 env:
   GITHUB_SHA: ${{ github.sha }}
+  IMAGE_REPO: ${{ secrets.DOCKER_IMAGE }}
 
 jobs:
   build:
@@ -33,7 +34,6 @@ jobs:
       build_start: ${{ steps.time_build.outputs.start }}
       build_end: ${{ steps.time_build.outputs.end }}
 
-      image_repo: ${{ steps.meta.outputs.image_repo }}
       image_tag: ${{ steps.meta.outputs.image_tag }}
       short_sha: ${{ steps.meta.outputs.short_sha }}
       safe_msg: ${{ steps.msg.outputs.safe_msg }}
@@ -59,16 +59,13 @@ jobs:
         run: |
           set -euo pipefail
           SHORT_SHA="${GITHUB_SHA::7}"
-          IMAGE_REPO="${{ secrets.DOCKER_IMAGE }}"
           IMAGE_TAG="sha-${SHORT_SHA}"
 
           echo "short_sha=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
-          echo "image_repo=${IMAGE_REPO}" >> "$GITHUB_OUTPUT"
           echo "image_tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
 
           mkdir -p out
           cat > out/image-meta.env <<EOF
-          IMAGE_REPO=${IMAGE_REPO}
           IMAGE_TAG=${IMAGE_TAG}
           COMMIT_SHA=${GITHUB_SHA}
           SHORT_SHA=${SHORT_SHA}
@@ -107,14 +104,15 @@ jobs:
         id: time_build
         run: |
           start=$(date +%s)
-          docker build -t "${{ steps.meta.outputs.image_repo }}:${{ steps.meta.outputs.image_tag }}" .
+          docker build -t "${{ env.IMAGE_REPO }}:${{ steps.meta.outputs.image_tag }}" .
           end=$(date +%s)
           echo "start=${start}" >> "$GITHUB_OUTPUT"
           echo "end=${end}" >> "$GITHUB_OUTPUT"
+
       - name: Push (push only)
         if: github.event_name == 'push'
         run: |
-          docker push "${{ steps.meta.outputs.image_repo }}:${{ steps.meta.outputs.image_tag }}"
+          docker push "${{ env.IMAGE_REPO }}:${{ steps.meta.outputs.image_tag }}"
 
       - name: Upload image meta (push only)
         if: github.event_name == 'push'
