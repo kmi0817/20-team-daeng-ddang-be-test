@@ -6,14 +6,14 @@ import com.daengddang.daengdong_map.dto.websocket.common.WebSocketMessage;
 import com.daengddang.daengdong_map.dto.websocket.outbound.BlockSyncEntry;
 import com.daengddang.daengdong_map.dto.websocket.outbound.BlocksSyncPayload;
 import com.daengddang.daengdong_map.repository.BlockOwnershipRepository;
+import com.daengddang.daengdong_map.repository.projection.BlockOwnershipView;
 import com.daengddang.daengdong_map.websocket.WebSocketDestinations;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-
 import com.daengddang.daengdong_map.util.AfterCommitExecutor;
+import com.daengddang.daengdong_map.util.WalkRuntimeStateRegistry;
+import com.daengddang.daengdong_map.util.WalkRuntimeStateRegistry.SyncState;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -27,7 +27,7 @@ public class BlockSyncService {
 
     private final BlockOwnershipRepository blockOwnershipRepository;
     private final SimpMessagingTemplate messagingTemplate;
-    private final ConcurrentMap<Long, SyncState> syncStates = new ConcurrentHashMap<>();
+    private final WalkRuntimeStateRegistry stateRegistry;
     private final AfterCommitExecutor afterCommitExecutor;
 
     public String toAreaKey(int blockX, int blockY) {
@@ -37,26 +37,26 @@ public class BlockSyncService {
     }
 
     public void syncBlocks(Long walkId, int blockX, int blockY, String areaKey, LocalDateTime now) {
-        SyncState state = syncStates.get(walkId);
-        if (state == null || !state.areaKey.equals(areaKey)) {
-            syncStates.put(walkId, new SyncState(areaKey, now));
+        SyncState state = stateRegistry.getSyncState(walkId);
+        if (state == null || !state.getAreaKey().equals(areaKey)) {
+            stateRegistry.putSyncState(walkId, new SyncState(areaKey, now));
             sendBlocksSync(blockX, blockY, areaKey);
             return;
         }
 
-        Duration since = Duration.between(state.lastSyncedAt, now);
+        Duration since = Duration.between(state.getLastSyncedAt(), now);
         if (since.getSeconds() < SYNC_MIN_INTERVAL_SECONDS) {
             return;
         }
 
-        state.lastSyncedAt = now;
+        state.recordLastSyncedAt(now);
         sendBlocksSync(blockX, blockY, areaKey);
     }
 
     public void syncBlocksOnAreaChange(Long walkId, int blockX, int blockY, String areaKey, LocalDateTime now) {
-        SyncState state = syncStates.get(walkId);
-        if (state == null || !state.areaKey.equals(areaKey)) {
-            syncStates.put(walkId, new SyncState(areaKey, now));
+        SyncState state = stateRegistry.getSyncState(walkId);
+        if (state == null || !state.getAreaKey().equals(areaKey)) {
+            stateRegistry.putSyncState(walkId, new SyncState(areaKey, now));
             sendBlocksSync(blockX, blockY, areaKey);
         }
     }
@@ -66,10 +66,7 @@ public class BlockSyncService {
         List<BlockSyncEntry> entries = blockOwnershipRepository.findAllByBlockRange(
                         range.minX, range.maxX, range.minY, range.maxY
                 ).stream()
-                .map(ownership -> BlockSyncEntry.from(
-                        BlockIdUtil.toBlockId(ownership.getBlock().getX(), ownership.getBlock().getY()),
-                        ownership.getDog().getId()
-                ))
+                .map(this::toBlockSyncEntry)
                 .toList();
 
         BlocksSyncPayload payload = BlocksSyncPayload.from(entries);
@@ -88,14 +85,11 @@ public class BlockSyncService {
         return new AreaRange(minX, minX + AREA_SIZE - 1, minY, minY + AREA_SIZE - 1);
     }
 
-    private static class SyncState {
-        private final String areaKey;
-        private LocalDateTime lastSyncedAt;
-
-        private SyncState(String areaKey, LocalDateTime lastSyncedAt) {
-            this.areaKey = areaKey;
-            this.lastSyncedAt = lastSyncedAt;
-        }
+    private BlockSyncEntry toBlockSyncEntry(BlockOwnershipView ownership) {
+        return BlockSyncEntry.from(
+                BlockIdUtil.toBlockId(ownership.getBlockX(), ownership.getBlockY()),
+                ownership.getDogId()
+        );
     }
 
     private static class AreaRange {

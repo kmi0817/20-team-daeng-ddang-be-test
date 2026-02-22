@@ -2,7 +2,6 @@ package com.daengddang.daengdong_map.service;
 
 import com.daengddang.daengdong_map.common.ErrorCode;
 import com.daengddang.daengdong_map.common.exception.BaseException;
-import com.daengddang.daengdong_map.domain.block.BlockOwnership;
 import com.daengddang.daengdong_map.domain.dog.Dog;
 import com.daengddang.daengdong_map.domain.walk.Walk;
 import com.daengddang.daengdong_map.domain.walk.WalkPoint;
@@ -14,9 +13,11 @@ import com.daengddang.daengdong_map.dto.response.walk.OccupiedBlockResponse;
 import com.daengddang.daengdong_map.dto.response.walk.WalkEndResponse;
 import com.daengddang.daengdong_map.dto.response.walk.WalkStartResponse;
 import com.daengddang.daengdong_map.repository.BlockOwnershipRepository;
+import com.daengddang.daengdong_map.repository.projection.BlockOwnershipView;
 import com.daengddang.daengdong_map.repository.WalkBlockLogRepository;
 import com.daengddang.daengdong_map.util.AccessValidator;
 import com.daengddang.daengdong_map.util.BlockOwnershipMapper;
+import com.daengddang.daengdong_map.util.WalkRuntimeStateRegistry;
 import com.daengddang.daengdong_map.util.WalkMetricsValidator;
 import com.daengddang.daengdong_map.repository.WalkPointRepository;
 import com.daengddang.daengdong_map.repository.WalkRepository;
@@ -37,6 +38,7 @@ public class WalkService {
     private final BlockOwnershipRepository blockOwnershipRepository;
     private final WalkBlockLogRepository walkBlockLogRepository;
     private final AccessValidator accessValidator;
+    private final WalkRuntimeStateRegistry stateRegistry;
 
     @Transactional
     public WalkStartResponse startWalk(Long userId, WalkStartRequest dto) {
@@ -102,6 +104,8 @@ public class WalkService {
             removeBlocksAcquiredInWalk(walk.getId());
         }
 
+        stateRegistry.clear(walk.getId());
+
         int occupiedBlockCount = Math.toIntExact(blockOwnershipRepository.countByDog(dog));
 
         return WalkEndResponse.from(
@@ -128,7 +132,7 @@ public class WalkService {
         return OccupiedBlockListResponse.from(blocks);
     }
 
-    private OccupiedBlockResponse toOccupiedBlock(BlockOwnership ownership) {
+    private OccupiedBlockResponse toOccupiedBlock(BlockOwnershipView ownership) {
         String blockId = BlockOwnershipMapper.toBlockId(ownership);
         return OccupiedBlockResponse.from(
                 blockId,
