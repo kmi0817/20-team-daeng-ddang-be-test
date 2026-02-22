@@ -44,6 +44,7 @@ jobs:
       deploy_end: ${{ steps.time_deploy.outputs.end }}
       image_tag: ${{ steps.meta.outputs.image_tag }}
       short_sha: ${{ steps.meta.outputs.short_sha }}
+      commit_sha: ${{ steps.meta.outputs.commit_sha }}
 
     steps:
       - name: Record CD start
@@ -65,6 +66,7 @@ jobs:
           cat meta/image-meta.env >> "$GITHUB_ENV"
           echo "image_tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
           echo "short_sha=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "commit_sha=${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -219,22 +221,49 @@ jobs:
 
           COMMAND_ID="$(aws ssm send-command \
             --document-name "AWS-RunShellScript" \
-            --comment "BE CD DEV inline sha=${GITHUB_SHA}" \
+            --comment "BE CD DEV inline ${COMMIT_SHA}" \
             --targets "Key=tag:Name,Values=daeng-map-dev" \
             --parameters commands="$CMD" \
             --query "Command.CommandId" --output text)"
 
           echo "command_id=${COMMAND_ID}" >> "$GITHUB_OUTPUT"
 
-          # 결과 기다리고 실패면 fail 처리
+          # 종료될 때까지 최대 15분 대기
+          deadline=$(( $(date +%s) + 900 ))
+          while true; do
+            statuses="$(aws ssm list-command-invocations --command-id "$COMMAND_ID" --details \
+              --query "CommandInvocations[].Status" --output text || true)"
+
+            if [ -z "${statuses:-}" ]; then
+              sleep 2
+            elif echo "$statuses" | tr '\t' '\n' | grep -Eq '^(Pending|InProgress|Delayed)$'; then
+              sleep 3
+            else
+              break
+            fi
+
+            if [ "$(date +%s)" -gt "$deadline" ]; then
+              echo "SSM command timeout" >&2
+              exit 1
+            fi
+          done
+
+          # 요약 테이블
           aws ssm list-command-invocations --command-id "$COMMAND_ID" --details \
             --query "CommandInvocations[*].{InstanceId:InstanceId,Status:Status}" --output table
 
-          FAIL_CNT="$(aws ssm list-command-invocations --command-id "$COMMAND_ID" --details \
+          # 실패 판정
+          BAD_CNT="$(aws ssm list-command-invocations --command-id "$COMMAND_ID" --details \
             --query "length(CommandInvocations[?Status!='Success'])" --output text)"
-          if [ "$FAIL_CNT" != "0" ]; then
+
+          if [ "$BAD_CNT" != "0" ]; then
             aws ssm list-command-invocations --command-id "$COMMAND_ID" --details \
-              --query "CommandInvocations[*].{InstanceId:InstanceId,Status:Status,Out:CommandPlugins[0].Output}" --output json || true
+              --query "CommandInvocations[*].{
+                InstanceId:InstanceId,
+                Status:Status,
+                StdOut:CommandPlugins[0].Output,
+                StdErr:CommandPlugins[0].StandardErrorContent
+              }" --output json || true
             exit 1
           fi
 
@@ -260,7 +289,7 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           TIMESTAMP: ${{ github.event.workflow_run.updated_at }}
           ACTOR: ${{ github.actor }}
-          BRANCH: ${{ github.ref_name }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
           EVENT_NAME: ${{ github.event_name }}
 
           CD_START: ${{ needs.deploy.outputs.cd_start }}
@@ -268,7 +297,7 @@ jobs:
           DEPLOY_S: ${{ needs.deploy.outputs.deploy_start }}
           DEPLOY_E: ${{ needs.deploy.outputs.deploy_end }}
           IMAGE_TAG: ${{ needs.deploy.outputs.image_tag }}
-          SHORT_SHA: ${{ needs.deploy.outputs.short_sha }}
+          COMMIT_SHA: ${{ needs.deploy.outputs.commit_sha }}
         run: |
           set -euo pipefail
 
@@ -296,7 +325,7 @@ jobs:
                 "url": "$RUN_URL",
                 "color": $COLOR,
                 "fields": [
-                  {"name":"Release ID","value":"\`${GITHUB_SHA}\`","inline":false},
+                  {"name":"Release ID","value":"\`${COMMIT_SHA}\`","inline":false},
 
                   {"name":"Actor","value":"${ACTOR}","inline":true},
                   {"name":"Branch","value":"${BRANCH}","inline":true},
