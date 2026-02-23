@@ -82,6 +82,7 @@ jobs:
         with:
           aws-region: ${{ env.AWS_REGION }}
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+
       - name: Sanity check - resolve target instance IDs by tag
         id: targets
         run: |
@@ -103,7 +104,7 @@ jobs:
           echo "✅ Found instance IDs: ${IDS}"
           echo "instance_ids=${IDS}" >> "$GITHUB_OUTPUT"
 
-      - name: Sanity check - SSM RunShellScript (echo/date/hostname)
+      - name: Sanity check - SSM RunShellScript (bash)
         id: ssm_sanity
         run: |
           set -euo pipefail
@@ -114,9 +115,9 @@ jobs:
           COMMAND_ID="$(
             aws ssm send-command \
               --document-name "AWS-RunShellScript" \
-              --comment "SSM sanity check from GitHub Actions" \
+              --comment "SSM sanity check (bash) from GitHub Actions" \
               --instance-ids ${IDS} \
-              --parameters 'commands=["set -euo pipefail","echo SSM_OK","date -Is","hostname","whoami","docker --version || true","docker compose version || true"]' \
+              --parameters 'commands=["bash -lc '\''set -euo pipefail; echo SSM_OK; date -Is; hostname; whoami; docker --version || true; docker compose version || true'\''"]' \
               --query "Command.CommandId" --output text
           )"
           echo "command_id=${COMMAND_ID}" >> "$GITHUB_OUTPUT"
