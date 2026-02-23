@@ -214,12 +214,12 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ap-northeast-2
 
-      - name: Upload docker-compose.bg.yml to S3
+      - name: Upload docker-compose.yml to S3
         id: s3
         env:
           S3_BUCKET: ${{ secrets.DEPLOY_BUCKET }}
         run: |
-          aws s3 cp ops/compose/docker-compose.bg.yml \
+          aws s3 cp docker-compose.yml \
             "s3://${{ secrets.DEPLOY_BUCKET }}/be/${{ env.ENV_NAME }}/docker-compose.yml"
           echo "✅ docker-compose.yml S3 업로드 완료"
 
