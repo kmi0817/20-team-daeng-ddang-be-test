@@ -130,6 +130,9 @@ jobs:
           # -----------------------------
           S3_OPS_URI="s3://${S3_BUCKET}/${S3_PREFIX}"
 
+          # 모든 export 명령어를 한 줄로 결합 (JSON 줄바꿈 에러 방지)
+          CMD_DEPLOY="export REGION=\"${AWS_REGION}\"; export SSM_PREFIX=\"${SSM_PREFIX}\"; export APP_DIR=\"${APP_DIR}\"; export OPS_DIR=\"${OPS_DIR}\"; export COMPOSE_FILE=\"${COMPOSE_FILE}\"; export SPRING_PROFILES_ACTIVE=\"dev\"; export ENV_NAME=\"dev\"; export DOCKER_IMAGE_REPO=\"${IMAGE_REPO}\"; export DOCKER_IMAGE_TAG=\"${IMAGE_TAG}\"; export IMAGE_REPO=\"${IMAGE_REPO}\"; export IMAGE_TAG=\"${IMAGE_TAG}\"; cd \"${OPS_DIR}/deploy\"; ./cd-dev.sh"
+
           SSM_PARAMS=$(cat <<EOF
           {
             "commands": [
@@ -137,20 +140,7 @@ jobs:
               "bash -lc 'set -euo pipefail; aws s3 sync \"${S3_OPS_URI}\" \"${OPS_DIR}\" --delete'",
               "bash -lc 'set -euo pipefail; find \"${OPS_DIR}\" -type f -name \"*.sh\" -exec chmod +x {} +'",
               "bash -lc 'set -euo pipefail; echo \"${DOCKERHUB_TOKEN}\" | docker login -u \"${DOCKERHUB_USERNAME}\" --password-stdin'",
-              "bash -lc 'set -euo pipefail; 
-                export REGION=\"${AWS_REGION}\"; 
-                export SSM_PREFIX=\"${SSM_PREFIX}\"; 
-                export APP_DIR=\"${APP_DIR}\"; 
-                export OPS_DIR=\"${OPS_DIR}\"; 
-                export COMPOSE_FILE=\"${COMPOSE_FILE}\"; 
-                export SPRING_PROFILES_ACTIVE=\"dev\"; 
-                export ENV_NAME=\"dev\"; 
-                export DOCKER_IMAGE_REPO=\"${IMAGE_REPO}\"; 
-                export DOCKER_IMAGE_TAG=\"${IMAGE_TAG}\"; 
-                export IMAGE_REPO=\"${IMAGE_REPO}\"; 
-                export IMAGE_TAG=\"${IMAGE_TAG}\"; 
-                cd \"${OPS_DIR}/deploy\"; 
-                ./cd-dev.sh'"
+              "bash -lc 'set -euo pipefail; ${CMD_DEPLOY}'"
             ]
           }
           EOF
