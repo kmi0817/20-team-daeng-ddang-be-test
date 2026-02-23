@@ -36,3 +36,6 @@ aws ssm get-parameters-by-path \
 chmod 644 "$tmp"
 mv "$tmp" "$OUT_FILE"
 log "✅ {OUT_DIR}/${OUT_FILE} 생성 (644)"
+
+log "========= File Check ========="
+ls -al /opt/app/backend/.env
