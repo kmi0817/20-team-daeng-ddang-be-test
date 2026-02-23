@@ -82,6 +82,92 @@ jobs:
         with:
           aws-region: ${{ env.AWS_REGION }}
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+      - name: Sanity check - resolve target instance IDs by tag
+        id: targets
+        run: |
+          set -euo pipefail
+
+          echo "🔎 Resolving EC2 instance IDs by tag..."
+          IDS="$(
+            aws ec2 describe-instances \
+              --filters "Name=tag:Name,Values=daeng-map-dev" "Name=instance-state-name,Values=running" \
+              --query "Reservations[].Instances[].InstanceId" \
+              --output text
+          )"
+
+          if [ -z "${IDS:-}" ]; then
+            echo "❌ No running instances found for tag Name=daeng-map-dev" >&2
+            exit 1
+          fi
+
+          echo "✅ Found instance IDs: ${IDS}"
+          echo "instance_ids=${IDS}" >> "$GITHUB_OUTPUT"
+
+      - name: Sanity check - SSM RunShellScript (echo/date/hostname)
+        id: ssm_sanity
+        run: |
+          set -euo pipefail
+
+          IDS="${{ steps.targets.outputs.instance_ids }}"
+          echo "🚀 Sending SSM command to: ${IDS}"
+
+          COMMAND_ID="$(
+            aws ssm send-command \
+              --document-name "AWS-RunShellScript" \
+              --comment "SSM sanity check from GitHub Actions" \
+              --instance-ids ${IDS} \
+              --parameters 'commands=["set -euo pipefail","echo SSM_OK","date -Is","hostname","whoami","docker --version || true","docker compose version || true"]' \
+              --query "Command.CommandId" --output text
+          )"
+          echo "command_id=${COMMAND_ID}" >> "$GITHUB_OUTPUT"
+          echo "✅ CommandId=${COMMAND_ID}"
+
+          # ---- wait until finished (max 3m) ----
+          deadline=$(( $(date +%s) + 180 ))
+          while true; do
+            statuses="$(aws ssm list-command-invocations --command-id "$COMMAND_ID" --details \
+              --query "CommandInvocations[].Status" --output text || true)"
+
+            if [ -z "${statuses:-}" ]; then
+              sleep 2
+            elif echo "$statuses" | tr '\t' '\n' | grep -Eq '^(Pending|InProgress|Delayed)$'; then
+              sleep 2
+            else
+              break
+            fi
+
+            if [ "$(date +%s)" -gt "$deadline" ]; then
+              echo "❌ SSM sanity check timeout" >&2
+              aws ssm list-command-invocations --command-id "$COMMAND_ID" --details --output json || true
+              exit 1
+            fi
+          done
+
+          echo "📌 Invocation summary"
+          aws ssm list-command-invocations --command-id "$COMMAND_ID" --details \
+            --query "CommandInvocations[*].{InstanceId:InstanceId,Status:Status}" --output table
+
+          BAD_CNT="$(aws ssm list-command-invocations --command-id "$COMMAND_ID" --details \
+            --query "length(CommandInvocations[?Status!='Success'])" --output text)"
+
+          if [ "$BAD_CNT" != "0" ]; then
+            echo "❌ Sanity check failed. Dumping stdout/stderr..."
+            aws ssm list-command-invocations --command-id "$COMMAND_ID" --details \
+              --query "CommandInvocations[*].{
+                InstanceId:InstanceId,
+                Status:Status,
+                StdOut:CommandPlugins[0].Output,
+                StdErr:CommandPlugins[0].StandardErrorContent
+              }" --output json || true
+            exit 1
+          fi
+
+          echo "✅ SSM sanity check success. Output:"
+          aws ssm list-command-invocations --command-id "$COMMAND_ID" --details \
+            --query "CommandInvocations[*].{
+              InstanceId:InstanceId,
+              StdOut:CommandPlugins[0].Output
+            }" --output json
 
       - name: Deploy via SSM
         id: time_deploy
