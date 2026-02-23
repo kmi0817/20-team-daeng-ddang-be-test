@@ -130,19 +130,26 @@ jobs:
           # -----------------------------
           S3_OPS_URI="s3://${S3_BUCKET}/${S3_PREFIX}"
 
+          # 파라미터를 JSON 형태로 미리 구성 (가독성과 안전성)
+          SSM_PARAMS=$(cat <<EOF
+          {
+            "commands": [
+              "bash -lc 'set -euo pipefail; mkdir -p \"${OPS_DIR}\" \"${APP_DIR}\" '",
+              "bash -lc 'set -euo pipefail; aws s3 sync \"${S3_OPS_URI}\" \"${OPS_DIR}\" --delete'",
+              "bash -lc 'set -euo pipefail; find \"${OPS_DIR}\" -type f -name \"*.sh\" -exec chmod +x {} +'",
+              "bash -lc 'set -euo pipefail; echo \"${DOCKERHUB_TOKEN}\" | docker login -u \"${DOCKERHUB_USERNAME}\" --password-stdin'",
+              "bash -lc 'set -euo pipefail; export REGION=\"${AWS_REGION}\"; export SSM_PREFIX=\"${SSM_PREFIX}\"; export APP_DIR=\"${APP_DIR}\"; export COMPOSE_FILE=\"${COMPOSE_FILE}\"; export SPRING_PROFILES_ACTIVE=\"dev\"; export IMAGE_REPO=\"${IMAGE_REPO}\"; export IMAGE_TAG=\"${IMAGE_TAG}\"; cd \"${OPS_DIR}/deploy\"; ./cd-dev.sh'"
+            ]
+          }
+          EOF
+          )
+
           COMMAND_ID="$(
             aws ssm send-command \
               --document-name "AWS-RunShellScript" \
               --comment "BE CD DEV ops-run ${COMMIT_SHA}" \
               --targets "Key=tag:Name,Values=daeng-map-sandbox-server" \
-              --parameters \
-                'commands'=[
-                  "bash -lc 'set -euo pipefail; mkdir -p \"${OPS_DIR}\" \"${APP_DIR}\" '",
-                  "bash -lc 'set -euo pipefail; aws s3 sync \"${S3_OPS_URI}\" \"${OPS_DIR}\" --delete'",
-                  "bash -lc 'set -euo pipefail; find \"${OPS_DIR}\" -type f -name \"*.sh\" -exec chmod +x {} +'",
-                  "bash -lc 'set -euo pipefail; echo \"${DOCKERHUB_TOKEN}\" | docker login -u \"${DOCKERHUB_USERNAME}\" --password-stdin'",
-                  "bash -lc 'set -euo pipefail; export REGION=\"${AWS_REGION}\"; export SSM_PREFIX=\"${SSM_PREFIX}\"; export APP_DIR=\"${APP_DIR}\"; export COMPOSE_FILE=\"${COMPOSE_FILE}\"; export SPRING_PROFILES_ACTIVE=\"dev\"; export IMAGE_REPO=\"${IMAGE_REPO}\"; export IMAGE_TAG=\"${IMAGE_TAG}\"; cd \"${OPS_DIR}/deploy\"; ./cd-dev.sh'"
-                ] \
+              --parameters "$SSM_PARAMS" \
               --query "Command.CommandId" --output text
           )"
 
