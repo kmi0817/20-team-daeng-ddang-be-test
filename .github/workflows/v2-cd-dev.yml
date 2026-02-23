@@ -133,19 +133,23 @@ jobs:
           # 모든 export 명령어를 한 줄로 결합 (JSON 줄바꿈 에러 방지)
           CMD_DEPLOY="export REGION=\"${AWS_REGION}\"; export SSM_PREFIX=\"${SSM_PREFIX}\"; export APP_DIR=\"${APP_DIR}\"; export OPS_DIR=\"${OPS_DIR}\"; export COMPOSE_FILE=\"${COMPOSE_FILE}\"; export SPRING_PROFILES_ACTIVE=\"dev\"; export ENV_NAME=\"dev\"; export DOCKER_IMAGE_REPO=\"${IMAGE_REPO}\"; export DOCKER_IMAGE_TAG=\"${IMAGE_TAG}\"; export IMAGE_REPO=\"${IMAGE_REPO}\"; export IMAGE_TAG=\"${IMAGE_TAG}\"; cd \"${OPS_DIR}/deploy\"; ./cd-dev.sh"
 
-          SSM_PARAMS=$(cat <<EOF
-          {
-            "commands": [
-              "bash -lc 'set -euo pipefail; mkdir -p \"${OPS_DIR}\" \"${APP_DIR}\" '",
-              "bash -lc 'set -euo pipefail; aws s3 sync \"${S3_OPS_URI}\" \"${OPS_DIR}\" --delete'",
-              "bash -lc 'set -euo pipefail; find \"${OPS_DIR}\" -type f -name \"*.sh\" -exec chmod +x {} +'",
-              "bash -lc 'set -euo pipefail; echo \"${DOCKERHUB_TOKEN}\" | docker login -u \"${DOCKERHUB_USERNAME}\" --password-stdin'",
-              "bash -lc 'set -euo pipefail; ${CMD_DEPLOY}'"
-            ]
-          }
-          EOF
-          )
+          # 1. 실행할 명령어들을 배열로 정의 (이스케이프 걱정 없음)
+          CMD1="bash -lc 'set -euo pipefail; mkdir -p \"${OPS_DIR}\" \"${APP_DIR}\" '"
+          CMD2="bash -lc 'set -euo pipefail; aws s3 sync \"${S3_OPS_URI}\" \"${OPS_DIR}\" --delete'"
+          CMD3="bash -lc 'set -euo pipefail; find \"${OPS_DIR}\" -type f -name \"*.sh\" -exec chmod +x {} +'"
+          CMD4="bash -lc 'set -euo pipefail; echo \"${DOCKERHUB_TOKEN}\" | docker login -u \"${DOCKERHUB_USERNAME}\" --password-stdin'"
+          CMD5="bash -lc 'set -euo pipefail; export REGION=\"${AWS_REGION}\"; export SSM_PREFIX=\"${SSM_PREFIX}\"; export APP_DIR=\"${APP_DIR}\"; export OPS_DIR=\"${OPS_DIR}\"; export COMPOSE_FILE=\"${COMPOSE_FILE}\"; export SPRING_PROFILES_ACTIVE=\"dev\"; export ENV_NAME=\"dev\"; export DOCKER_IMAGE_REPO=\"${IMAGE_REPO}\"; export DOCKER_IMAGE_TAG=\"${IMAGE_TAG}\"; export IMAGE_REPO=\"${IMAGE_REPO}\"; export IMAGE_TAG=\"${IMAGE_TAG}\"; cd \"${OPS_DIR}/deploy\"; ./cd-dev.sh'"
 
+          # 2. jq를 사용하여 안전한 JSON 생성
+          SSM_PARAMS=$(jq -n \
+            --arg c1 "$CMD1" \
+            --arg c2 "$CMD2" \
+            --arg c3 "$CMD3" \
+            --arg c4 "$CMD4" \
+            --arg c5 "$CMD5" \
+            '{"commands": [$c1, $c2, $c3, $c4, $c5]}')
+
+          # 3. SSM 명령 실행
           COMMAND_ID="$(
             aws ssm send-command \
               --document-name "AWS-RunShellScript" \
