@@ -33,6 +33,6 @@ aws ssm get-parameters-by-path \
     print key"="$2
   }' > "$tmp"
 
-chmod 600 "$tmp"
+chmod 644 "$tmp"
 mv "$tmp" "$OUT_FILE"
-log "✅ {OUT_DIR}/${OUT_FILE} 생성 (600)"
+log "✅ {OUT_DIR}/${OUT_FILE} 생성 (644)"
