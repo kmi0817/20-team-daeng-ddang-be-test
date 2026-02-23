@@ -20,9 +20,10 @@ env:
   SSM_PREFIX: /daeng-map/prod/be # 테스트용 추후 dev로 변경
 
   APP_DIR: /opt/app/backend
-  UPSTREAM_CONF: /etc/caddy/conf.d/upstream.caddy
-  CADDYFILE: /etc/caddy/Caddyfile
-  COMPOSE_FILE: /opt/app/backend/docker-compose.bg.yml
+  OPS_DIR: /opt/app/backend/ops
+  COMPOSE_FILE: /opt/app/backend/ops/compose/docker-compose.bg.yml
+
+  S3_PREFIX: ops/v2/be
 
 jobs:
   deploy:
@@ -51,6 +52,13 @@ jobs:
         id: cd_time
         run: echo "start=$(date +%s)" >> "$GITHUB_OUTPUT"
 
+      # CI가 돌았던 커밋으로 checkout
+      - name: Checkout (CI head_sha)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          fetch-depth: 1
+
       - name: Download image meta from CI run
         uses: actions/download-artifact@v4
         with:
@@ -61,21 +69,20 @@ jobs:
 
       - name: Load image meta
         id: meta
+        shell: bash
         run: |
           set -euo pipefail
-
-          # 1) 현재 step에서 즉시 환경변수 로드
           set -a
           source meta/image-meta.env
           set +a
 
-          # 2) 다음 step에서도 쓰도록 GITHUB_ENV에 저장
-          cat meta/image-meta.env >> "$GITHUB_ENV"
+          echo "IMAGE_TAG=${IMAGE_TAG}" >> "$GITHUB_ENV"
+          echo "COMMIT_SHA=${COMMIT_SHA}" >> "$GITHUB_ENV"
+          echo "SHORT_SHA=${SHORT_SHA}" >> "$GITHUB_ENV"
 
-          # 3) outputs 기록
           echo "image_tag=${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
-          echo "short_sha=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
           echo "commit_sha=${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "short_sha=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -83,245 +90,78 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
 
-      - name: Sanity check - resolve target instance IDs by tag
-        id: targets
+      - name: Upload ops/ to S3
+        shell: bash
+        env:
+          S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
         run: |
           set -euo pipefail
+          test -d ops || { echo "ops/ directory not found in repo" >&2; exit 1; }
 
-          echo "🔎 Resolving EC2 instance IDs by tag..."
-          IDS="$(
-            aws ec2 describe-instances \
-              --filters "Name=tag:Name,Values=daeng-map-sandbox-server" "Name=instance-state-name,Values=running" \
-              --query "Reservations[].Instances[].InstanceId" \
-              --output text
-          )"
-
-          if [ -z "${IDS:-}" ]; then
-            echo "❌ No running instances found for tag Name=daeng-map-sandbox-server" >&2
-            exit 1
-          fi
-
-          echo "✅ Found instance IDs: ${IDS}"
-          echo "instance_ids=${IDS}" >> "$GITHUB_OUTPUT"
-
-      - name: Sanity check - SSM RunShellScript (bash)
-        id: ssm_sanity
-        run: |
-          set -euo pipefail
-
-          IDS="${{ steps.targets.outputs.instance_ids }}"
-          echo "🚀 Sending SSM command to: ${IDS}"
-
-          COMMAND_ID="$(
-            aws ssm send-command \
-              --document-name "AWS-RunShellScript" \
-              --comment "SSM sanity check (bash) from GitHub Actions" \
-              --instance-ids ${IDS} \
-              --parameters 'commands=["bash -lc '\''set -euo pipefail; echo SSM_OK; date -Is; hostname; whoami; docker --version || true; docker compose version || true'\''"]' \
-              --query "Command.CommandId" --output text
-          )"
-          echo "command_id=${COMMAND_ID}" >> "$GITHUB_OUTPUT"
-          echo "✅ CommandId=${COMMAND_ID}"
-
-          # ---- wait until finished (max 3m) ----
-          deadline=$(( $(date +%s) + 180 ))
-          while true; do
-            statuses="$(aws ssm list-command-invocations --command-id "$COMMAND_ID" --details \
-              --query "CommandInvocations[].Status" --output text || true)"
-
-            if [ -z "${statuses:-}" ]; then
-              sleep 2
-            elif echo "$statuses" | tr '\t' '\n' | grep -Eq '^(Pending|InProgress|Delayed)$'; then
-              sleep 2
-            else
-              break
-            fi
-
-            if [ "$(date +%s)" -gt "$deadline" ]; then
-              echo "❌ SSM sanity check timeout" >&2
-              aws ssm list-command-invocations --command-id "$COMMAND_ID" --details --output json || true
-              exit 1
-            fi
-          done
-
-          echo "📌 Invocation summary"
-          aws ssm list-command-invocations --command-id "$COMMAND_ID" --details \
-            --query "CommandInvocations[*].{InstanceId:InstanceId,Status:Status}" --output table
-
-          BAD_CNT="$(aws ssm list-command-invocations --command-id "$COMMAND_ID" --details \
-            --query "length(CommandInvocations[?Status!='Success'])" --output text)"
-
-          if [ "$BAD_CNT" != "0" ]; then
-            echo "❌ Sanity check failed. Dumping stdout/stderr..."
-            aws ssm list-command-invocations --command-id "$COMMAND_ID" --details \
-              --query "CommandInvocations[*].{
-                InstanceId:InstanceId,
-                Status:Status,
-                StdOut:CommandPlugins[0].Output,
-                StdErr:CommandPlugins[0].StandardErrorContent
-              }" --output json || true
-            exit 1
-          fi
-
-          echo "✅ SSM sanity check success. Output:"
-          aws ssm list-command-invocations --command-id "$COMMAND_ID" --details \
-            --query "CommandInvocations[*].{
-              InstanceId:InstanceId,
-              StdOut:CommandPlugins[0].Output
-            }" --output json
+          DEST="s3://${S3_BUCKET}/${S3_PREFIX}"
+          echo "Uploading ./ops -> ${DEST}"
+          aws s3 sync ops "${DEST}" --delete
 
       - name: Deploy via SSM
         id: time_deploy
         env:
+          S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
           IMAGE_REPO: ${{ secrets.DOCKER_IMAGE }}
           DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        shell: bash
         run: |
           set -euo pipefail
           start=$(date +%s); echo "start=${start}" >> "$GITHUB_OUTPUT"
 
+          # 대상 인스턴스 ID 먼저 조회해서 로그에 남기기
+          INSTANCE_IDS="$(aws ec2 describe-instances \
+            --filters "Name=tag:Name,Values=daeng-map-sandbox-server" "Name=instance-state-name,Values=running" \
+            --query "Reservations[].Instances[].InstanceId" --output text)"
+
+          if [ -z "${INSTANCE_IDS:-}" ]; then
+            echo "No running instances matched tag Name=daeng-map-sandbox-server" >&2
+            exit 1
+          fi
+          echo "🚀 Sending SSM command to: ${INSTANCE_IDS}"
+
           # -----------------------------
           # SSM에서 실행할 실제 스크립트 정의
           # -----------------------------
-          read -r -d '' CMD <<'BASH'
-          set -euo pipefail
+          S3_OPS_URI="s3://${S3_BUCKET}/${S3_PREFIX}"
 
-          require() { command -v "$1" >/dev/null 2>&1 || { echo "Missing command: $1" >&2; exit 1; }; }
-          log() { echo "[$(date -Is)] $*" >&2; }
-
-          require aws
-          require awk
-          require docker
-          require curl
-          require caddy
-
-          mkdir -p "${APP_DIR}" /etc/caddy/conf.d
-
-          # 1) docker pull 로그인
-          echo "${DOCKERHUB_TOKEN}" | docker login -u "${DOCKERHUB_USERNAME}" --password-stdin
-
-          # 2) docker-compose 파일
-          cat > "${COMPOSE_FILE}" <<EOF
-          services:
-            daeng-backend:
-              image: "${IMAGE_REPO}:${IMAGE_TAG}"
-              container_name: "daeng-be-\${COLOR}"
-              restart: unless-stopped
-              ports:
-                - "\${HOST_PORT}:8080"
-              env_file:
-                - ${APP_DIR}/.env
-              environment:
-                SPRING_PROFILES_ACTIVE: "\${SPRING_PROFILES_ACTIVE:-dev}"
-              healthcheck:
-                test: ["CMD-SHELL", "curl -fsS http://localhost:8080/api/v3/health >/dev/null || exit 1"]
-                interval: 5s
-                timeout: 2s
-                retries: 12
-                start_period: 20s
-          EOF
-
-          # 3) Parameter Store로 .env 렌더링
-          tmp="${APP_DIR}/.env.tmp"
-          aws ssm get-parameters-by-path \
-            --path "${SSM_PREFIX}" \
-            --with-decryption \
-            --recursive \
-            --region "${AWS_REGION}" \
-            --query "Parameters[*].[Name,Value]" \
-            --output text \
-          | awk -F '\t' -v p="${SSM_PREFIX}/" '{
-            key=$1;
-            sub(p,"",key);      # prefix 제거
-            gsub(/\//,"_",key); # 혹시 남아있을지 모를 슬래시 방지
-            gsub(/\r/,"",$2);
-            print key"="$2
-          }' > "$tmp"
-          chmod 600 "$tmp"
-          mv "$tmp" "${APP_DIR}/.env"
-
-          log "✅ ${APP_DIR}/.env 생성 완료 (600)"
-
-          # 4) Current/Target 결정
-          IS_8080_ALIVE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 2 http://127.0.0.1:8080/api/v3/health || echo "fail")
-          if [ "$IS_8080_ALIVE" = "200" ]; then
-            OLD_COLOR=blue; OLD_PORT=8080
-            NEW_COLOR=green; NEW_PORT=8081
-          else
-            OLD_COLOR=green; OLD_PORT=8081
-            NEW_COLOR=blue; NEW_PORT=8080
-          fi
-          log "ℹ️ Current: ${OLD_COLOR}(${OLD_PORT}) -> Target: ${NEW_COLOR}(${NEW_PORT})"
-
-          # 5) Target 배포
-          export COLOR="${NEW_COLOR}"
-          export HOST_PORT="${NEW_PORT}"
-          docker compose -p "daeng-backend-${NEW_COLOR}" -f "${COMPOSE_FILE}" pull
-          docker compose -p "daeng-backend-${NEW_COLOR}" -f "${COMPOSE_FILE}" up -d --remove-orphans
-
-          # 6) 헬스체크
-          HEALTH_URL="http://127.0.0.1:${HOST_PORT}/api/v3/health"
-          ok=0
-          for i in {1..30}; do
-            if curl -fsS --max-time 2 "$HEALTH_URL" >/dev/null; then ok=1; break; fi
-            sleep 2
-          done
-
-          if [ "$ok" -ne 1 ]; then
-            log "❌ 헬스체크 실패"
-            docker compose -p "daeng-backend-${COLOR}" -f "$COMPOSE_FILE" logs --tail=200 || true
-            docker compose -p "daeng-backend-${COLOR}" -f "$COMPOSE_FILE" down || true
-            exit 1
-          fi
-          log "✅ 헬스체크 성공"
-
-          # 7) Caddy 트래픽 전환
-          BEFORE="$(cat "$UPSTREAM_CONF" 2>/dev/null || true)"
-          echo "reverse_proxy localhost:${NEW_PORT}" | tee "$UPSTREAM_CONF" >/dev/null
-
-          if caddy reload --config "$CADDYFILE"; then
-            log "✅ Caddy ${NEW_PORT}로 트래픽 전환 완료"
-            docker compose -p "daeng-backend-${OLD_COLOR}" -f "${COMPOSE_FILE}" down || true
-          else
-            log "🚨 Caddy reload 실패. upstream을 롤백합니다."
-            printf "%s" "$BEFORE" > "$UPSTREAM_CONF" || true
-            caddy reload --config "$CADDYFILE" || true
-            docker compose -p "daeng-backend-${NEW_COLOR}" -f "${COMPOSE_FILE}" down || true
-            exit 1
-          fi
-          BASH
-
-          # -----------------------------
-          # 환경변수 주입 및 base64 인코딩
-          # -----------------------------
-          REMOTE_SCRIPT=$(
-            cat <<EOF
-          export AWS_REGION='${AWS_REGION}'
-          export SSM_PREFIX='${SSM_PREFIX}'
-          export APP_DIR='${APP_DIR}'
-          export UPSTREAM_CONF='${UPSTREAM_CONF}'
-          export CADDYFILE='${CADDYFILE}'
-          export COMPOSE_FILE='${COMPOSE_FILE}'
-          export IMAGE_REPO='${IMAGE_REPO}'
-          export IMAGE_TAG='${IMAGE_TAG}'
-          export DOCKERHUB_USERNAME='${DOCKERHUB_USERNAME}'
-          export DOCKERHUB_TOKEN='${DOCKERHUB_TOKEN}'
-          EOF
-            printf "\n"
-            printf "%s\n" "$CMD"
-          )
-
-          SCRIPT_B64="$(printf '%s' "$REMOTE_SCRIPT" | base64 -w0)"
-
-          # --- 3) send-command: commands= 형태로 안전하게 전달 ---
           COMMAND_ID="$(
             aws ssm send-command \
               --document-name "AWS-RunShellScript" \
-              --comment "BE CD DEV inline ${COMMIT_SHA}" \
+              --comment "BE CD DEV ops-run ${COMMIT_SHA}" \
               --targets "Key=tag:Name,Values=daeng-map-sandbox-server" \
-              --parameters "commands=echo ${SCRIPT_B64} | base64 -d > /tmp/be_cd.sh, bash -lc 'chmod +x /tmp/be_cd.sh && /tmp/be_cd.sh'" \
+              --parameters "$(cat <<JSON
+          {
+            "commands": [
+              "bash -lc 'set -euo pipefail; mkdir -p \"${OPS_DIR}\" \"${APP_DIR}\"'",
+              "bash -lc 'set -euo pipefail; aws s3 sync \"${S3_OPS_URI}\" \"${OPS_DIR}\" --delete'",
+              "bash -lc 'set -euo pipefail; find \"${OPS_DIR}\" -type f -name \"*.sh\" -exec chmod +x {} \\;'",
+
+              "bash -lc 'set -euo pipefail; echo \"${DOCKERHUB_TOKEN}\" | docker login -u \"${DOCKERHUB_USERNAME}\" --password-stdin'",
+
+              "bash -lc 'set -euo pipefail; \
+                export REGION=\"${AWS_REGION}\"; \
+                export SSM_PREFIX=\"${SSM_PREFIX}\"; \
+                export APP_DIR=\"${APP_DIR}\"; \
+                export COMPOSE_FILE=\"${COMPOSE_FILE}\"; \
+                export SPRING_PROFILES_ACTIVE=\"dev\"; \
+                export IMAGE_REPO=\"${IMAGE_REPO}\"; \
+                export IMAGE_TAG=\"${IMAGE_TAG}\"; \
+                cd \"${OPS_DIR}/deploy\"; \
+                ./cd-dev.sh'"
+            ]
+          }
+          JSON
+          )" \
               --query "Command.CommandId" --output text
           )"
+
+          echo "✅ CommandId=${COMMAND_ID}"
           echo "command_id=${COMMAND_ID}" >> "$GITHUB_OUTPUT"
 
           # 종료될 때까지 최대 15분 대기
@@ -353,6 +193,7 @@ jobs:
             --query "length(CommandInvocations[?Status!='Success'])" --output text)"
 
           if [ "$BAD_CNT" != "0" ]; then
+            echo "❌ Deploy failed. Dumping stdout/stderr..."
             aws ssm list-command-invocations --command-id "$COMMAND_ID" --details \
               --query "CommandInvocations[*].{
                 InstanceId:InstanceId,
@@ -367,6 +208,7 @@ jobs:
 
       - name: Record CD end
         id: cd_time_end
+        if: always()
         run: echo "end=$(date +%s)" >> "$GITHUB_OUTPUT"
 
   notify:
@@ -431,7 +273,8 @@ jobs:
                   {"name": "Event Name","value":"${EVENT_NAME}","inline":true},
 
                   {"name":"Total CD","value":"${cd_total}s","inline":true},
-                  {"name":"Deploy","value":"${deploy_sec}s","inline":true}
+                  {"name":"Deploy","value":"${deploy_sec}s","inline":true},
+                  {"name":"Image Tag","value":"\`${IMAGE_TAG}\`","inline":true}
                 ],
                 "timestamp": "$TIMESTAMP"
               }
