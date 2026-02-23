@@ -11,6 +11,8 @@ services:
       SPRING_PROFILES_ACTIVE: ${ENV_NAME}
     env_file:
       - /opt/app/backend/.env
+    volumes:
+      - /opt/app/backend/logs:/app/logs
     healthcheck:
       test:
         [
