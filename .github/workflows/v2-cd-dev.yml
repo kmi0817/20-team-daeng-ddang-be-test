@@ -135,29 +135,21 @@ jobs:
               --document-name "AWS-RunShellScript" \
               --comment "BE CD DEV ops-run ${COMMIT_SHA}" \
               --targets "Key=tag:Name,Values=daeng-map-sandbox-server" \
-              --parameters "$(cat <<JSON
-          {
-            "commands": [
-              "bash -lc 'set -euo pipefail; mkdir -p \"${OPS_DIR}\" \"${APP_DIR}\"'",
-              "bash -lc 'set -euo pipefail; aws s3 sync \"${S3_OPS_URI}\" \"${OPS_DIR}\" --delete'",
-              "bash -lc 'set -euo pipefail; find \"${OPS_DIR}\" -type f -name \"*.sh\" -exec chmod +x {} \\;'",
-
-              "bash -lc 'set -euo pipefail; echo \"${DOCKERHUB_TOKEN}\" | docker login -u \"${DOCKERHUB_USERNAME}\" --password-stdin'",
-
-              "bash -lc 'set -euo pipefail; \
-                export REGION=\"${AWS_REGION}\"; \
-                export SSM_PREFIX=\"${SSM_PREFIX}\"; \
-                export APP_DIR=\"${APP_DIR}\"; \
-                export COMPOSE_FILE=\"${COMPOSE_FILE}\"; \
-                export SPRING_PROFILES_ACTIVE=\"dev\"; \
-                export IMAGE_REPO=\"${IMAGE_REPO}\"; \
-                export IMAGE_TAG=\"${IMAGE_TAG}\"; \
-                cd \"${OPS_DIR}/deploy\"; \
-                ./cd-dev.sh'"
-            ]
-          }
-          JSON
-          )" \
+              --parameters \
+                commands="bash -lc 'set -euo pipefail; mkdir -p \"${OPS_DIR}\" \"${APP_DIR}\"'" \
+                commands="bash -lc 'set -euo pipefail; aws s3 sync \"${S3_OPS_URI}\" \"${OPS_DIR}\" --delete'" \
+                commands="bash -lc 'set -euo pipefail; find \"${OPS_DIR}\" -type f -name \"*.sh\" -exec chmod +x {} +'" \
+                commands="bash -lc 'set -euo pipefail; echo \"${DOCKERHUB_TOKEN}\" | docker login -u \"${DOCKERHUB_USERNAME}\" --password-stdin'" \
+                commands="bash -lc 'set -euo pipefail; \
+                  export REGION=\"${AWS_REGION}\"; \
+                  export SSM_PREFIX=\"${SSM_PREFIX}\"; \
+                  export APP_DIR=\"${APP_DIR}\"; \
+                  export COMPOSE_FILE=\"${COMPOSE_FILE}\"; \
+                  export SPRING_PROFILES_ACTIVE=\"dev\"; \
+                  export IMAGE_REPO=\"${IMAGE_REPO}\"; \
+                  export IMAGE_TAG=\"${IMAGE_TAG}\"; \
+                  cd \"${OPS_DIR}/deploy\"; \
+                  ./cd-dev.sh'" \
               --query "Command.CommandId" --output text
           )"
 
@@ -253,6 +245,12 @@ jobs:
           if [ "$JOB_STATUS" = "success" ]; then
             TITLE="✅ [BE / ${ENV_NAME}] CD Success"
             COLOR=5763719
+          elif [ "$JOB_STATUS" = "cancelled" ]; then
+            TITLE="⚠️ [BE / ${ENV_NAME}] CD Cancelled"
+            COLOR=16776988
+          elif [ "$JOB_STATUS" = "skipped" ]; then
+            TITLE="⏭️ [BE / ${ENV_NAME}] CD Skipped"
+            COLOR=9807270
           else
             TITLE="❌ [BE / ${ENV_NAME}] CD Failed"
             COLOR=15548997
