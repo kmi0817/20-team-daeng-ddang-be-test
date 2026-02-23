@@ -198,13 +198,13 @@ jobs:
           mkdir -p "${APP_DIR}" /etc/caddy/conf.d
 
           # 1) docker pull 로그인
-          echo "__DOCKERHUB_TOKEN__" | docker login -u "__DOCKERHUB_USERNAME__" --password-stdin
+          echo "${DOCKERHUB_TOKEN}" | docker login -u "${DOCKERHUB_USERNAME}" --password-stdin
 
-          # 2) docker-compose 파일(1개 파일로 BG)
+          # 2) docker-compose 파일
           cat > "${COMPOSE_FILE}" <<EOF
           services:
             daeng-backend:
-              image: "\${IMAGE_REPO}:\${IMAGE_TAG}"
+              image: "${IMAGE_REPO}:${IMAGE_TAG}"
               container_name: "daeng-be-\${COLOR}"
               restart: unless-stopped
               ports:
@@ -244,15 +244,13 @@ jobs:
 
           # 4) Current/Target 결정
           IS_8080_ALIVE=$(curl -s -o /dev/null -w "%{http_code}" --max-time 2 http://127.0.0.1:8080/api/v3/health || echo "fail")
-
-          if [ "$IS_8080_ALIVE" == "200" ]; then
-            OLD_COLOR=blue;  OLD_PORT=8080
+          if [ "$IS_8080_ALIVE" = "200" ]; then
+            OLD_COLOR=blue; OLD_PORT=8080
             NEW_COLOR=green; NEW_PORT=8081
           else
             OLD_COLOR=green; OLD_PORT=8081
-            NEW_COLOR=blue;  NEW_PORT=8080
+            NEW_COLOR=blue; NEW_PORT=8080
           fi
-
           log "ℹ️ Current: ${OLD_COLOR}(${OLD_PORT}) -> Target: ${NEW_COLOR}(${NEW_PORT})"
 
           # 5) Target 배포
@@ -275,7 +273,6 @@ jobs:
             docker compose -p "daeng-backend-${COLOR}" -f "$COMPOSE_FILE" down || true
             exit 1
           fi
-
           log "✅ 헬스체크 성공"
 
           # 7) Caddy 트래픽 전환
@@ -284,7 +281,6 @@ jobs:
 
           if caddy reload --config "$CADDYFILE"; then
             log "✅ Caddy ${NEW_PORT}로 트래픽 전환 완료"
-            # 8) old down
             docker compose -p "daeng-backend-${OLD_COLOR}" -f "${COMPOSE_FILE}" down || true
           else
             log "🚨 Caddy reload 실패. upstream을 롤백합니다."
@@ -298,7 +294,9 @@ jobs:
           # -----------------------------
           # 환경변수 주입 및 base64 인코딩
           # -----------------------------
-          REMOTE_SCRIPT="export AWS_REGION='${AWS_REGION}'
+          REMOTE_SCRIPT=$(
+            cat <<EOF
+          export AWS_REGION='${AWS_REGION}'
           export SSM_PREFIX='${SSM_PREFIX}'
           export APP_DIR='${APP_DIR}'
           export UPSTREAM_CONF='${UPSTREAM_CONF}'
@@ -308,27 +306,22 @@ jobs:
           export IMAGE_TAG='${IMAGE_TAG}'
           export DOCKERHUB_USERNAME='${DOCKERHUB_USERNAME}'
           export DOCKERHUB_TOKEN='${DOCKERHUB_TOKEN}'
-          ${REMOTE_SCRIPT}
-          "
-          SCRIPT_B64=$(printf "%s" "$REMOTE_SCRIPT" | base64 -w0)
+          EOF
+            printf "\n"
+            printf "%s\n" "$CMD"
+          )
 
+          SCRIPT_B64="$(printf '%s' "$REMOTE_SCRIPT" | base64 -w0)"
+
+          # --- 3) send-command: commands= 형태로 안전하게 전달 ---
           COMMAND_ID="$(
-          aws ssm send-command \
-            --document-name "AWS-RunShellScript" \
-            --comment "BE CD DEV inline ${COMMIT_SHA}" \
-            --targets "Key=tag:Name,Values=daeng-map-dev" \
-            --parameters "$(cat <<JSON
-          {
-            "commands": [
-              "echo ${SCRIPT_B64} | base64 -d > /tmp/be_cd.sh",
-              "bash /tmp/be_cd.sh"
-            ]
-          }
-          JSON
-          )" \
-            --query "Command.CommandId" --output text
+            aws ssm send-command \
+              --document-name "AWS-RunShellScript" \
+              --comment "BE CD DEV inline ${COMMIT_SHA}" \
+              --targets "Key=tag:Name,Values=daeng-map-dev" \
+              --parameters "commands=echo ${SCRIPT_B64} | base64 -d > /tmp/be_cd.sh, bash -lc 'chmod +x /tmp/be_cd.sh && /tmp/be_cd.sh'" \
+              --query "Command.CommandId" --output text
           )"
-
           echo "command_id=${COMMAND_ID}" >> "$GITHUB_OUTPUT"
 
           # 종료될 때까지 최대 15분 대기
