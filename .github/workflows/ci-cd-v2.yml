@@ -183,19 +183,19 @@ jobs:
 
           curl -sS -X POST -H "Content-Type: application/json" --data-binary "$JSON_PAYLOAD" "$WEBHOOK" || true
 
-  cd:
-    name: CD
+  cd-prod:
+    name: CD (Prod)
     needs: ci
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
-    if: github.event_name == 'push' && (github.ref_name == 'main' || github.ref_name == 'dev')
+    if: github.event_name == 'push' && github.ref_name == 'main'
 
     environment:
-      name: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+      name: prod
 
     env:
-      ENV_NAME: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+      ENV_NAME: prod
 
     steps:
       - name: Mark CD start
