@@ -217,7 +217,7 @@ jobs:
       - name: Upload docker-compose.bg.yml to S3
         id: s3
         env:
-          S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
+          S3_BUCKET: ${{ secrets.DEPLOY_BUCKET }}
         run: |
           aws s3 cp ops/compose/docker-compose.bg.yml \
             "s3://${{ secrets.DEPLOY_BUCKET }}/be/${{ env.ENV_NAME }}/docker-compose.yml"
