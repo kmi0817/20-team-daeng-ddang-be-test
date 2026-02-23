@@ -245,6 +245,12 @@ jobs:
           if [ "$JOB_STATUS" = "success" ]; then
             TITLE="✅ [BE / ${ENV_NAME}] CD Success"
             COLOR=5763719
+          elif [ "$JOB_STATUS" = "cancelled" ]; then
+            TITLE="⚠️ [BE / ${ENV_NAME}] CD Cancelled"
+            COLOR=16776988
+          elif [ "$JOB_STATUS" = "skipped" ]; then
+            TITLE="⏭️ [BE / ${ENV_NAME}] CD Skipped"
+            COLOR=9807270
           else
             TITLE="❌ [BE / ${ENV_NAME}] CD Failed"
             COLOR=15548997
