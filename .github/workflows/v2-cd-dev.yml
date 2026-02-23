@@ -91,13 +91,13 @@ jobs:
           echo "🔎 Resolving EC2 instance IDs by tag..."
           IDS="$(
             aws ec2 describe-instances \
-              --filters "Name=tag:Name,Values=daeng-map-dev" "Name=instance-state-name,Values=running" \
+              --filters "Name=tag:Name,Values=daeng-map-sandbox-server" "Name=instance-state-name,Values=running" \
               --query "Reservations[].Instances[].InstanceId" \
               --output text
           )"
 
           if [ -z "${IDS:-}" ]; then
-            echo "❌ No running instances found for tag Name=daeng-map-dev" >&2
+            echo "❌ No running instances found for tag Name=daeng-map-sandbox-server" >&2
             exit 1
           fi
 
@@ -318,7 +318,7 @@ jobs:
             aws ssm send-command \
               --document-name "AWS-RunShellScript" \
               --comment "BE CD DEV inline ${COMMIT_SHA}" \
-              --targets "Key=tag:Name,Values=daeng-map-dev" \
+              --targets "Key=tag:Name,Values=daeng-map-sandbox-server" \
               --parameters "commands=echo ${SCRIPT_B64} | base64 -d > /tmp/be_cd.sh, bash -lc 'chmod +x /tmp/be_cd.sh && /tmp/be_cd.sh'" \
               --query "Command.CommandId" --output text
           )"
