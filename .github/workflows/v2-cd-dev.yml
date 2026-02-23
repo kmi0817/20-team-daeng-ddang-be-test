@@ -130,9 +130,6 @@ jobs:
           # -----------------------------
           S3_OPS_URI="s3://${S3_BUCKET}/${S3_PREFIX}"
 
-          # 모든 export 명령어를 한 줄로 결합 (JSON 줄바꿈 에러 방지)
-          CMD_DEPLOY="export REGION=\"${AWS_REGION}\"; export SSM_PREFIX=\"${SSM_PREFIX}\"; export APP_DIR=\"${APP_DIR}\"; export OPS_DIR=\"${OPS_DIR}\"; export COMPOSE_FILE=\"${COMPOSE_FILE}\"; export SPRING_PROFILES_ACTIVE=\"dev\"; export ENV_NAME=\"dev\"; export DOCKER_IMAGE_REPO=\"${IMAGE_REPO}\"; export DOCKER_IMAGE_TAG=\"${IMAGE_TAG}\"; export IMAGE_REPO=\"${IMAGE_REPO}\"; export IMAGE_TAG=\"${IMAGE_TAG}\"; cd \"${OPS_DIR}/deploy\"; ./cd-dev.sh"
-
           # 1. 실행할 명령어들을 배열로 정의 (이스케이프 걱정 없음)
           CMD1="bash -lc 'set -euo pipefail; mkdir -p \"${OPS_DIR}\" \"${APP_DIR}\" '"
           CMD2="bash -lc 'set -euo pipefail; aws s3 sync \"${S3_OPS_URI}\" \"${OPS_DIR}\" --delete'"
