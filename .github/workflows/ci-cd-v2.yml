@@ -321,6 +321,7 @@ jobs:
           JOB_STATUS: ${{ job.status }}
           RELEASE_ID: ${{ env.RELEASE_ID }}
           ACTOR: ${{ github.actor }}
+          BRANCH: ${{ github.ref_name }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           TIMESTAMP: ${{ github.event.head_commit.timestamp }}
           CD_START: ${{ steps.cd_time.outputs.start }}
