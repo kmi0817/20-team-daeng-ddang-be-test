@@ -2,6 +2,7 @@ package com.daengddang.daengdong_map.config;
 
 
 import com.daengddang.daengdong_map.repository.UserRepository;
+import com.daengddang.daengdong_map.security.filter.HeaderLoggingFilter;
 import com.daengddang.daengdong_map.security.jwt.JwtAccessDeniedHandler;
 import com.daengddang.daengdong_map.security.jwt.JwtAuthenticationEntryPoint;
 import com.daengddang.daengdong_map.security.jwt.JwtAuthenticationFilter;
@@ -13,6 +14,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -54,16 +56,22 @@ public class SecurityConfig {
                                 "/ws/**",
                                 "/api/v3/auth",
                                 "/api/v3/auth/",
-                                "/api/v1/auth/**",
+                                "/api/v3/rankings/**",
                                 "/api/v3/auth/**",
+                                "/api/v3/users/regions",
+                                "/api//v3/regions",
                                 "/api/swagger-ui/**",
                                 "/api/v3/api-docs/**"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(
+                        new HeaderLoggingFilter(),
+                        UsernamePasswordAuthenticationFilter.class
+                )
+                .addFilterAfter(
                         new JwtAuthenticationFilter(jwtTokenProvider, userRepository),
-                        org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class
+                        HeaderLoggingFilter.class
                 );
 
         return http.build();
