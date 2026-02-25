@@ -24,12 +24,14 @@ public class HeaderLoggingFilter extends OncePerRequestFilter {
         String xForwardedFor = request.getHeader("X-Forwarded-For");
         String xCaddySource = request.getHeader("X-Caddy-Source");
 
-        log.info("[Request] {} {} | X-Forwarded-For={} | X-Caddy-Source={}",
-                method,
-                uri,
-                xForwardedFor,
-                xCaddySource
-        );
+        if (!(uri.equals("/api/v3/health") && method.equals("GET"))) {
+            log.info("[Request] {} {} | X-Forwarded-For={} | X-Caddy-Source={}",
+                    method,
+                    uri,
+                    xForwardedFor,
+                    xCaddySource
+            );
+        }
 
         filterChain.doFilter(request, response);
     }
