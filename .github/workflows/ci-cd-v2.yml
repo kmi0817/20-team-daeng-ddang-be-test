@@ -219,9 +219,9 @@ jobs:
         run: |
           set -euo pipefail
 
-          # 1. 현재 SSM에 저장된 태그 가져오기 (없을 경우를 대비해 || true 처리)
+          # 1. 현재 배포되어 있는 태그 가져오기
           CURRENT_TAG=$(aws ssm get-parameter \
-            --name "${{ secrets.BE_SSM_DOCKER_IMAGE_PARAM }}" \
+            --name "${{ secrets.BE_SSM_DOCKER_IMAGE_PARAM }}/current" \
             --query "Parameter.Value" \
             --output text 2>/dev/null || echo "none")
 
@@ -229,6 +229,8 @@ jobs:
 
           echo "🔍 현재 배포된 태그: $CURRENT_TAG"
           echo "🚀 배포하려는 태그: $TARGET_TAG"
+
+          echo "prev_tag=$CURRENT_TAG" >> "$GITHUB_OUTPUT"
 
           if [ "$CURRENT_TAG" = "$TARGET_TAG" ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
@@ -252,7 +254,7 @@ jobs:
         id: ssm
         run: |
           aws ssm put-parameter \
-            --name "${{ secrets.BE_SSM_DOCKER_IMAGE_PARAM }}" \
+            --name "${{ secrets.BE_SSM_DOCKER_IMAGE_PARAM }}/current" \
             --value "${{ env.DOCKER_IMAGE }}:${{ env.RELEASE_ID }}" \
             --type String \
             --overwrite
@@ -336,6 +338,21 @@ jobs:
             esac
           done
 
+      # 새로운 버전으로 배포가 성공했으며 직전 배포가 존재할 때 백업 이미지로 저장
+      - name: Backup Previous Tag
+        if: |
+          steps.check_tag.outputs.skip != 'true' && 
+          steps.check_tag.outputs.prev_tag != 'none' &&
+          success()
+        run: |
+          echo "📦 직전 버전 백업 중: ${{ steps.check_tag.outputs.prev_tag }}"
+          aws ssm put-parameter \
+            --name "${{ secrets.BE_SSM_DOCKER_IMAGE_PARAM }}/backup" \
+            --value "${{ steps.check_tag.outputs.prev_tag }}" \
+            --type String \
+            --overwrite
+          echo "✅ 백업 완료"
+
       - name: Mark CD end
         id: cd_time_end
         if: always()
@@ -373,6 +390,9 @@ jobs:
           elif [ "$JOB_STATUS" = "cancelled" ]; then
             TITLE="⚠️ [BE / ${ENV_NAME}] CD Cancelled"
             COLOR=16776988
+          elif [ "$JOB_STATUS" = "skipped" ]; then
+            TITLE="⏭️ [BE / ${ENV_NAME}] CI Skipped"
+            COLOR=9807270
           else
             TITLE="❌ [BE / ${ENV_NAME}] CD Failed"
             COLOR=15548997
@@ -382,6 +402,7 @@ jobs:
           # 개행 문자 및 따옴표 제거, 200자로 자름
           safe_msg=$(echo "$MESSAGE" | tr '\n' ' ' | sed 's/"/\\"/g' | head -c 200)
 
+          # 동일 배포 처리
           if [ "$SKIP" = "true" ]; then
             TITLE="⏭️ [BE / ${ENV_NAME}] CD Skipped due to same Version"
             COLOR=9807270
